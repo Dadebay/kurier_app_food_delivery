@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "184971755486",
+    "project_id": "alowalow-c3a21",
+    "storage_bucket": "alowalow-c3a21.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184971755486:android:72c73551ede0134a14274f",
+        "android_client_info": {
+          "package_name": "com.gurbanov.alowalow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDT3FUTqf2n2GFPSt10Zy9OsyI0L2M4c3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184971755486:android:131551ac958700a414274f",
+        "android_client_info": {
+          "package_name": "com.gurbanov.kurier"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDT3FUTqf2n2GFPSt10Zy9OsyI0L2M4c3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
