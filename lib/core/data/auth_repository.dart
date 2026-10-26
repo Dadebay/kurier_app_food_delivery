@@ -41,7 +41,10 @@ class AuthRepository {
   String? get signedInPhone => _prefs.getString(_phoneKey);
 
   /// Restores the saved session into the HTTP client on app start.
-  void restore() => _api.token = token;
+  void restore() {
+    _api.accountId = token == null ? null : signedInPhone;
+    _api.token = token;
+  }
 
   Future<void> requestCode(String phone) async {
     if (AppConfig.useMockData) {
@@ -163,6 +166,7 @@ class AuthRepository {
   Future<bool>? _refreshInFlight;
 
   Future<bool> _doRefresh() async {
+    final generation = _api.sessionGeneration;
     final refreshToken = _prefs.getString(_refreshTokenKey);
     if (refreshToken == null) return false;
     try {
@@ -170,12 +174,15 @@ class AuthRepository {
         ApiPaths.refresh,
         data: {'refreshToken': refreshToken},
       );
+      if (generation != _api.sessionGeneration) return false;
       final data = response.data;
       final token = data is Map<String, dynamic>
           ? data['accessToken'] as String?
           : null;
       if (response.statusCode != 200 || token == null) {
-        await _clearSession();
+        if (response.statusCode == 400 || response.statusCode == 401) {
+          await _clearSession();
+        }
         return false;
       }
       await _persist(
@@ -199,6 +206,7 @@ class AuthRepository {
     if (refreshToken != null) {
       await _prefs.setString(_refreshTokenKey, refreshToken);
     }
+    _api.accountId = phone;
     _api.token = token;
   }
 
@@ -209,6 +217,8 @@ class AuthRepository {
   static final _personalCachePaths = RegExp(r'/orders');
 
   Future<void> _clearSession() async {
+    _api.accountId = null;
+    _api.token = null;
     await _prefs.remove(_tokenKey);
     await _prefs.remove(_phoneKey);
     await _prefs.remove(_refreshTokenKey);

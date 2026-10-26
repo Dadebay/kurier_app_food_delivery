@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../constants/app_config.dart';
 import '../models/pending_action.dart';
@@ -9,117 +9,180 @@ import '../network/api_client.dart';
 import 'location_service.dart';
 import 'offline_queue_service.dart';
 
-/// Reports the courier's position to the server every few minutes.
-///
-/// This is the feature the customer and the operator actually see: slide 8 —
-/// "курьер отображается на карте значком машины, обновляется каждые 3–5 минут".
-///
-/// The ping goes through the offline queue rather than straight to Dio, so a
-/// position captured in a basement is still delivered once the courier is back
-/// on the street.
+/// Uploads fresh measurements every 15 seconds throughout the explicit shift,
+/// including while stationary. Acquisition, queueing and stopping are guarded
+/// by the same generation so delayed work cannot revive a finished shift.
 class TrackingService extends ChangeNotifier {
   TrackingService({
     required LocationService location,
     required OfflineQueueService queue,
     required ApiClient api,
+    Future<void> Function(bool keepAwake)? screenWake,
+    this.interval = AppConfig.trackingInterval,
   }) : _location = location,
        _queue = queue,
-       _api = api;
+       _api = api,
+       _screenWake = screenWake ?? _holdScreen {
+    _queue.addListener(_notify);
+  }
 
+  /// Held for exactly as long as the shift: a courier glancing at the next
+  /// stop while driving should not have to wake the phone first. Android only
+  /// honours it while the app is actually on screen, so this costs nothing
+  /// once the courier pockets the phone — the foreground service, not this,
+  /// is what keeps reporting alive then.
+  static Future<void> _holdScreen(bool keepAwake) =>
+      WakelockPlus.toggle(enable: keepAwake);
+
+  final Duration interval;
+  final Future<void> Function(bool keepAwake) _screenWake;
   final LocationService _location;
   final OfflineQueueService _queue;
   final ApiClient _api;
-
   Timer? _timer;
-  LatLng? _lastSent;
-  DateTime? _lastSentAt;
-  String? _courierId;
+  String? _owner;
+  int _generation = 0;
+  bool _disposed = false;
+  DateTime? _lastQueuedAt;
+  Future<void>? _startInFlight;
+  Future<void>? _sendInFlight;
+  Future<void>? _stopInFlight;
 
   bool get running => _timer != null;
-  DateTime? get lastSentAt => _lastSentAt;
 
-  /// Starts reporting. Called when the courier goes on shift.
-  Future<void> start(String courierId) async {
-    _courierId = courierId;
-    if (_timer != null) return;
-
-    await _location.start();
-    // Send one immediately so the operator sees the courier the moment the
-    // shift starts, then settle into the interval.
-    await _send();
-    _timer = Timer.periodic(AppConfig.trackingInterval, (_) => _send());
-    notifyListeners();
+  /// Actual HTTP success, not the moment a fix entered the offline queue.
+  DateTime? get lastSentAt => _queue.lastPingSentAt;
+  void _notify() {
+    if (!_disposed) notifyListeners();
   }
 
-  /// Stops reporting — courier went off shift or signed out. Also tells the
-  /// server to drop the last known position, so the operator/customer stop
-  /// seeing a marker for a courier who is no longer actually tracking.
-  Future<void> stop() async {
+  Future<void> start(String courierId) {
+    final owner = _api.accountId;
+    if (_disposed || owner == null || !_api.authenticated) {
+      return Future.value();
+    }
+    if (_owner == owner) return _startInFlight ?? Future.value();
+    _owner = owner;
+    final generation = ++_generation;
+    final future = _start(owner, generation, _stopInFlight);
+    _startInFlight = future;
+    return future;
+  }
+
+  bool _valid(String owner, int generation) =>
+      !_disposed &&
+      _owner == owner &&
+      _generation == generation &&
+      _api.accountId == owner;
+
+  Future<void> _start(
+    String owner,
+    int generation,
+    Future<void>? stopping,
+  ) async {
+    await stopping;
+    if (!_valid(owner, generation)) return;
+    _location.setOwner(owner);
+    _queue.beginTracking(owner);
+    await _location.start();
+    if (!_valid(owner, generation)) return;
+    _timer?.cancel();
+    _timer = Timer.periodic(interval, (_) => unawaited(_send()));
+    unawaited(_send());
+    unawaited(_setScreenWake(true));
+    _notify();
+  }
+
+  /// Never fatal: a phone that refuses the wakelock still delivers orders.
+  Future<void> _setScreenWake(bool keepAwake) async {
+    try {
+      await _screenWake(keepAwake);
+    } catch (_) {
+      // Platform without the API, or a plugin not registered under test.
+    }
+  }
+
+  Future<void> _send() {
+    if (_sendInFlight != null) return _sendInFlight!;
+    final future = _sendFix();
+    _sendInFlight = future;
+    unawaited(
+      future.then((_) {
+        if (identical(_sendInFlight, future)) _sendInFlight = null;
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _sendFix() async {
+    final owner = _owner;
+    final generation = _generation;
+    if (owner == null || !_valid(owner, generation)) return;
+    try {
+      final point = await _location.currentOrFix();
+      if (!_valid(owner, generation) || point == null) return;
+      final fix = _location.fix;
+      if (fix == null || !fix.isFresh(DateTime.now())) return;
+      if (_lastQueuedAt != null && !fix.recordedAt.isAfter(_lastQueuedAt!)) {
+        return;
+      }
+      await _queue.enqueue(
+        PendingAction(
+          id: 'ping-${fix.recordedAt.microsecondsSinceEpoch}',
+          ownerId: owner,
+          kind: PendingActionKind.ping,
+          path: ApiPaths.ping,
+          method: 'PUT',
+          body: fix.toJson(),
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (_valid(owner, generation)) _lastQueuedAt = fix.recordedAt;
+    } catch (_) {
+      // A storage/platform error must not kill the periodic recovery loop.
+    }
+  }
+
+  Future<void> stop() {
+    if (_owner == null && _stopInFlight != null) return _stopInFlight!;
+    final owner = _owner;
+    _owner = null;
+    _generation++;
     _timer?.cancel();
     _timer = null;
-    _lastSent = null;
-    notifyListeners();
-
-    if (_courierId == null) return;
-    _courierId = null;
-    try {
-      await _api.delete(ApiPaths.ping);
-    } catch (_) {
-      // Best-effort cleanup — the position simply goes stale server-side if
-      // this doesn't land, nothing to retry once tracking has stopped.
-    }
+    _lastQueuedAt = null;
+    unawaited(_setScreenWake(false));
+    _queue.suspendTracking();
+    final locationStopped = _location.stop();
+    final sending = _sendInFlight;
+    final future = _stop(owner, locationStopped, sending);
+    _stopInFlight = future;
+    _notify();
+    return future;
   }
 
-  Future<void> _send() async {
-    final courierId = _courierId;
-    if (courierId == null) return;
-
-    final point = await _location.currentOrFix();
-    if (point == null) return;
-
-    // The reading may be a remembered one — the courier is inside a building
-    // and the receiver has nothing new. Send it anyway, but with the time it
-    // was actually taken, so the operator sees a position with an honest age
-    // instead of an old point pretending to be live. Past the server's
-    // ten-minute window it would only be rejected, so it is dropped here.
-    final recordedAt = _location.currentAt ?? DateTime.now();
-    final age = DateTime.now().difference(recordedAt);
-    if (age > const Duration(minutes: 9)) return;
-
-    // Skip the upload when the courier is parked — nothing on the operator's
-    // screen would change, and it saves the data plan.
-    final previous = _lastSent;
-    if (previous != null &&
-        LocationService.metersBetween(previous, point) < AppConfig.minTrackingDistanceMeters) {
-      return;
+  Future<void> _stop(
+    String? owner,
+    Future<void> locationStopped,
+    Future<void>? sending,
+  ) async {
+    await locationStopped;
+    await sending;
+    await _queue.discardTracking();
+    if (owner == null || owner != _api.accountId) return;
+    try {
+      // All earlier PUTs finished and further retries are barred before DELETE.
+      await _api.endTracking(owner);
+    } catch (_) {
+      // Offline: the server's existing marker expires by its normal TTL.
     }
-
-    await _queue.enqueue(
-      PendingAction(
-        id: 'ping-${DateTime.now().microsecondsSinceEpoch}',
-        kind: PendingActionKind.ping,
-        path: ApiPaths.ping,
-        method: 'PUT',
-        body: {
-          'latitude': point.latitude,
-          'longitude': point.longitude,
-          'heading': _location.heading,
-          if (_location.accuracy != null) 'accuracy': _location.accuracy,
-          if (_location.speed != null) 'speed': _location.speed,
-          'recordedAt': recordedAt.toUtc().toIso8601String(),
-        },
-        createdAt: DateTime.now(),
-      ),
-    );
-
-    _lastSent = point;
-    _lastSentAt = DateTime.now();
-    notifyListeners();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _disposed = true;
+    _queue.removeListener(_notify);
+    unawaited(stop());
     super.dispose();
   }
 }

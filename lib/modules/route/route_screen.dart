@@ -12,7 +12,9 @@ import '../../core/models/order.dart';
 import '../../core/models/order_status.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/maps_me_service.dart';
 import '../../core/services/routing_service.dart';
+import '../../core/widgets/location_warning.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -77,7 +79,8 @@ class _RouteScreenState extends State<RouteScreen> {
         'current=${location.current}\x1B[0m',
       );
     }
-    final started = await location.start();
+    final started = location.ready;
+    if (location.active) await location.currentOrFix();
     if (!mounted) return;
     if (kDebugMode) {
       final color = location.current == null ? '\x1B[33m⚠️' : '\x1B[32m✅';
@@ -198,6 +201,39 @@ class _RouteScreenState extends State<RouteScreen> {
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
+  /// Hands the stop to MAPS.ME, routing from wherever the courier is now.
+  ///
+  /// The map on this screen shows the way but cannot speak it; MAPS.ME can,
+  /// and from offline maps, which is what a courier actually drives with.
+  Future<void> _navigateInMapsMe(DeliveryOrder order) async {
+    final s = context.sr;
+    final opened = await MapsMeService.navigate(
+      destination: order.address.point,
+      destinationName: '№${order.number} · ${order.customerName}',
+    );
+    if (opened || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(s.mapsMeMissingTitle),
+        content: Text(s.mapsMeMissingMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(s.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              unawaited(MapsMeService.openStore());
+            },
+            child: Text(s.mapsMeInstall),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Advances the order. Delivery is the one step that needs confirmation,
   /// because it is also the cash hand-over.
   Future<void> _advance(DeliveryOrder order) async {
@@ -254,7 +290,7 @@ class _RouteScreenState extends State<RouteScreen> {
     // Prefer the live phone fix. While a vendor GPS provider is warming up,
     // the route API's authenticated fresh courier waypoint keeps the car
     // visible without inventing a position on the client.
-    final courierPoint = location.current ?? _route.courierPoint;
+    final courierPoint = location.current;
 
     // Single-target mode only plots the focused order unless the courier
     // asks to see the rest; multi-stop mode always shows every open order.
@@ -264,17 +300,26 @@ class _RouteScreenState extends State<RouteScreen> {
         ? null
         : mapOrders.indexWhere((o) => o.id == focused.id);
 
-    // Same reasoning as the pins: don't draw the line past a stop that isn't
-    // on screen.
-    final routePoints = returning || showAll || focused == null
-        ? _route.points
-        : _clipToFocused(_route.points, focused.address.point);
-
-    _maybeRebuildRoute(location.current);
-
     // Still waiting at the branch: the courier's next physical stop is the
     // pickup, not the customer, so the card must point there instead.
     final awaitingPickup = focused?.status == OrderStatus.assigned;
+
+    // Same reasoning as the pins: don't draw the line past a stop that isn't
+    // on screen.
+    //
+    // The leg being driven right now is the one worth drawing. Before pickup
+    // that is courier → branch, which is what the card overhead already
+    // announces; carrying the line on to the customer as well painted a long
+    // detour across the city for a trip that starts three kilometres up the
+    // road, and made the drawn line disagree with the distance beside it.
+    final legTarget = awaitingPickup
+        ? (shift.branchPoint ?? focused!.address.point)
+        : focused?.address.point;
+    final routePoints = returning || showAll || legTarget == null
+        ? _route.points
+        : _clipToFocused(_route.points, legTarget);
+
+    _maybeRebuildRoute(location.current);
 
     // Distance to the focused stop: the routed figure when the route actually
     // leads there — always true in single-target mode, only when it's the
@@ -447,6 +492,7 @@ class _RouteScreenState extends State<RouteScreen> {
                 order: focused,
                 busy: _busy,
                 onCall: () => _call(focused.customerPhone),
+                onNavigate: () => _navigateInMapsMe(focused),
                 onAdvance: () => _advance(focused),
                 onPickUp: focused.status == OrderStatus.assigned
                     ? () => _advance(focused)
@@ -461,10 +507,21 @@ class _RouteScreenState extends State<RouteScreen> {
             Positioned(
               right: 16,
               bottom: MediaQuery.paddingOf(context).bottom + 16,
-              child: _MapButton(
-                icon: AppIcons.call,
-                tooltip: s.callCustomer,
-                onTap: () => _call(contactOrder.customerPhone),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _MapButton(
+                    icon: AppIcons.route,
+                    tooltip: s.openInMapsMe,
+                    onTap: () => _navigateInMapsMe(contactOrder),
+                  ),
+                  const SizedBox(height: 12),
+                  _MapButton(
+                    icon: AppIcons.call,
+                    tooltip: s.callCustomer,
+                    onTap: () => _call(contactOrder.customerPhone),
+                  ),
+                ],
               ),
             ),
         ],
@@ -507,6 +564,7 @@ class _OrderSheet extends StatelessWidget {
     required this.order,
     required this.busy,
     required this.onCall,
+    required this.onNavigate,
     required this.onAdvance,
     required this.onPickUp,
   });
@@ -514,6 +572,9 @@ class _OrderSheet extends StatelessWidget {
   final DeliveryOrder order;
   final bool busy;
   final VoidCallback onCall;
+
+  /// Hands this stop to MAPS.ME — see [_RouteScreenState._navigateInMapsMe].
+  final VoidCallback onNavigate;
   final VoidCallback onAdvance;
   final VoidCallback? onPickUp;
 
@@ -577,6 +638,33 @@ class _OrderSheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // Turn-by-turn navigation lives in MAPS.ME: this map shows
+                  // the way but cannot speak it, and MAPS.ME works from
+                  // offline maps when the round leaves coverage.
+                  Tooltip(
+                    message: s.openInMapsMe,
+                    child: Material(
+                      color: AppColors.white,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: onNavigate,
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: const HugeIcon(
+                            icon: AppIcons.route,
+                            color: AppColors.green,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   // Calling the customer is one tap from the map: the most
                   // common reason a delivery stalls is a wrong entrance.
                   Tooltip(
@@ -637,6 +725,7 @@ class _OrderSheet extends StatelessWidget {
                 ],
               ),
               const SyncBanner(padding: EdgeInsets.only(top: 12)),
+              const LocationWarning(compact: true),
             ],
           ),
         ),

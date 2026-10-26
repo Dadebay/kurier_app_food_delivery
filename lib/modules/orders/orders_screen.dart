@@ -1,18 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/localization/locale_provider.dart';
 import '../../core/models/order.dart';
-import '../../core/services/location_service.dart';
 import '../../core/services/data_usage_service.dart';
 import '../../core/services/tracking_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/services/location_service.dart';
 import '../../core/widgets/delivery_loader.dart';
 import '../../core/widgets/location_warning.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/shift_readiness_gate.dart';
 import '../../core/widgets/sync_banner.dart';
 import '../auth/auth_provider.dart';
 import '../history/history_screen.dart';
@@ -32,16 +35,44 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
+  AppLifecycleListener? _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    // Coming back from the system settings screen is the one moment a grant
+    // can change without the app being told. Without this the courier would
+    // flip "Allow all the time" on and still be warned they hadn't.
+    _lifecycle = AppLifecycleListener(onResume: _refreshReadiness);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final shift = context.read<ShiftProvider>();
       if (shift.courier == null) shift.load();
-      // Ask for GPS as soon as the list opens: without it the courier is
-      // invisible to the operator and the customer.
-      context.read<LocationService>().start();
+      // ShiftProvider owns location startup, including persisted off-shift state.
     });
+  }
+
+  @override
+  void dispose() {
+    _lifecycle?.dispose();
+    super.dispose();
+  }
+
+  void _refreshReadiness() {
+    if (!mounted) return;
+    final location = context.read<LocationService>();
+    unawaited(location.refreshBatteryExemption());
+    // Status only — a resume must never raise a permission dialog. No-op off
+    // shift, and no-op once background mode is already running.
+    unawaited(location.refreshBackgroundStatus());
+  }
+
+  /// Going on shift is the promise that the operator can see this courier.
+  /// Everything Android needs for that to survive a locked screen is asked
+  /// for here, before the shift is reported as started.
+  Future<void> _toggleShift(bool goingOnShift) async {
+    if (goingOnShift && !await ShiftReadinessGate.ensure(context)) return;
+    if (!mounted) return;
+    await context.read<ShiftProvider>().toggleShift();
   }
 
   @override
@@ -66,7 +97,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               dataUsage: dataUsage.isSupported
                   ? DataUsageService.formatBytes(dataUsage.totalBytes)
                   : '—',
-              onToggleShift: () => context.read<ShiftProvider>().toggleShift(),
+              onToggleShift: () => _toggleShift(!courier.onShift),
               onOpenProfile: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),

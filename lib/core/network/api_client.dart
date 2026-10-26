@@ -5,6 +5,7 @@ import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:dio_cache_interceptor_hive_store/dio_cache_interceptor_hive_store.dart';
 
 import '../constants/app_config.dart';
+import '../models/pending_action.dart';
 
 /// Thin Dio wrapper. Timeouts are deliberately generous — a courier on a weak
 /// 3G cell should get a slow answer rather than a false failure.
@@ -31,6 +32,21 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
+          final owner = options.extra['queueOwner'];
+          final allowed = options.extra['stillAllowed'] as bool Function()?;
+          if (owner != null &&
+              (owner != accountId ||
+                  _token == null ||
+                  options.extra['sessionGeneration'] != _sessionGeneration ||
+                  allowed?.call() == false)) {
+            return handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.cancel,
+                error: 'Queued request no longer belongs to the active session',
+              ),
+            );
+          }
           if (_token != null) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
@@ -41,16 +57,30 @@ class ApiClient {
               response.requestOptions.extra['retried'] == true;
           final isRefreshCall =
               response.requestOptions.path == ApiPaths.refresh;
-          if (response.statusCode == 401 &&
+          final expectedOwner = response.requestOptions.extra['queueOwner'];
+          final allowed =
+              response.requestOptions.extra['stillAllowed'] as bool Function()?;
+          final mayRetry =
+              expectedOwner == null ||
+              (expectedOwner == accountId &&
+                  response.requestOptions.extra['sessionGeneration'] ==
+                      _sessionGeneration &&
+                  allowed?.call() != false);
+          if (mayRetry &&
+              response.statusCode == 401 &&
               !alreadyRetried &&
               !isRefreshCall &&
               onUnauthorized != null) {
             final refreshed = await onUnauthorized!();
             if (refreshed) {
-              final retried = await _dio.fetch<dynamic>(
-                response.requestOptions..extra['retried'] = true,
-              );
-              return handler.resolve(retried);
+              try {
+                final retried = await _dio.fetch<dynamic>(
+                  response.requestOptions..extra['retried'] = true,
+                );
+                return handler.resolve(retried);
+              } on DioException catch (error) {
+                return handler.reject(error);
+              }
             }
           }
           handler.next(response);
@@ -94,6 +124,38 @@ class ApiClient {
   late final Dio _dio;
   late final HiveCacheStore _cacheStore;
   String? _token;
+  String? _accountId;
+  int _sessionGeneration = 0;
+  String? get accountId => _accountId;
+  int get sessionGeneration => _sessionGeneration;
+  bool get authenticated => _token != null && _accountId != null;
+  set accountId(String? value) {
+    if (_accountId != value) _sessionGeneration++;
+    _accountId = value;
+  }
+
+  Future<Response<dynamic>> sendQueued(
+    PendingAction action, {
+    bool Function()? stillAllowed,
+  }) => _dio.request<dynamic>(
+    action.path,
+    data: action.body,
+    options: Options(
+      method: action.method,
+      extra: {
+        'queueOwner': action.ownerId,
+        'sessionGeneration': _sessionGeneration,
+        'stillAllowed': ?stillAllowed,
+      },
+    ),
+  );
+
+  Future<Response<dynamic>> endTracking(String owner) => _dio.delete(
+    ApiPaths.ping,
+    options: Options(
+      extra: {'queueOwner': owner, 'sessionGeneration': _sessionGeneration},
+    ),
+  );
 
   /// Refreshes an expired access token before retrying a protected request.
   Future<bool> Function()? onUnauthorized;
@@ -140,8 +202,6 @@ class ApiPaths {
   static const String branches = 'branches';
   static const String ping = 'tracking/me/location';
 
-  /// Server-side Wi-Fi/cell positioning, used only when the phone has no fix.
-  static const String locate = 'tracking/me/locate';
   static const String pushDevices = 'notifications/devices';
 
   static String orderStatus(String id) => 'orders/$id/transition';

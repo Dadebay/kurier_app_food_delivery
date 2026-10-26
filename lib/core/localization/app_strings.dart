@@ -54,6 +54,10 @@ abstract class AppStrings {
   String get km;
   String get orderNo;
   String get callCustomer;
+  String get openInMapsMe;
+  String get mapsMeMissingTitle;
+  String get mapsMeMissingMessage;
+  String get mapsMeInstall;
   String get buildingRoute;
   String get loadingOrders;
   String get showAllOrders;
@@ -136,6 +140,34 @@ abstract class AppStrings {
   String get noOrdersHint;
   String get locationDenied;
   String get locationDeniedHint;
+  String get locationWaiting;
+  String get locationWaitingHint;
+  String get locationServiceOff;
+  String get locationBackgroundHint;
+
+  // ─── Shift readiness (screen-off tracking) ───────────────────
+  /// Android foreground-service notification, shown for the whole shift.
+  String get trackingNotificationChannel;
+  String get trackingNotificationTitle;
+  String get trackingNotificationSubtitle;
+
+  /// Asked for before a shift can start, because without it the courier
+  /// disappears from the operator's map the moment the screen locks.
+  String get backgroundGateTitle;
+  String get backgroundGateBody;
+  String get backgroundGateStartAnyway;
+
+  /// Aggressive OEM battery savers kill the tracking service even with the
+  /// permission granted; this exemption is what keeps a long shift alive.
+  String get batteryGateTitle;
+  String get batteryGateBody;
+  String get batteryGateAllow;
+  String get batteryGateSkip;
+
+  /// Takes the age itself rather than a second count: a fix that is an hour
+  /// old should say so in hours, not in 3600 seconds.
+  String locationAge(Duration age);
+  String locationAccuracy(int meters);
   String get retry;
   String get openSettings;
 }
@@ -223,6 +255,15 @@ class StringsRu extends AppStrings {
   String get orderNo => 'Заказ';
   @override
   String get callCustomer => 'Позвонить клиенту';
+  @override
+  String get openInMapsMe => 'Открыть в MAPS.ME';
+  @override
+  String get mapsMeMissingTitle => 'MAPS.ME не установлен';
+  @override
+  String get mapsMeMissingMessage =>
+      'Для навигации по голосовым подсказкам и офлайн-картам установите MAPS.ME.';
+  @override
+  String get mapsMeInstall => 'Установить';
   @override
   String get buildingRoute => 'Строим маршрут…';
   @override
@@ -359,6 +400,57 @@ class StringsRu extends AppStrings {
   String get locationDeniedHint =>
       'Оператор и клиент не видят вас на карте. Разрешите доступ в настройках.';
   @override
+  String get locationWaiting => 'Ждём координаты телефона';
+  @override
+  String get locationWaitingHint =>
+      'Свежая позиция пока не получена. Включите геолокацию и попробуйте на открытом месте.';
+  @override
+  String get locationServiceOff => 'Геолокация на телефоне выключена';
+  @override
+  String get locationBackgroundHint =>
+      'Для работы с закрытым экраном разрешите геолокацию «Всегда» в настройках приложения.';
+
+  @override
+  String get trackingNotificationChannel => 'Отслеживание смены';
+  @override
+  String get trackingNotificationTitle => 'A7-TAGAM · Вы на смене';
+  @override
+  String get trackingNotificationSubtitle =>
+      'Геопозиция передаётся оператору. Не закрывайте приложение.';
+
+  @override
+  String get backgroundGateTitle => 'Разрешите геолокацию «Всегда»';
+  @override
+  String get backgroundGateBody =>
+      'Без этого разрешения вы пропадаете с карты оператора, как только гаснет экран. '
+      'Откройте настройки и выберите «Разрешить всегда».';
+  @override
+  String get backgroundGateStartAnyway => 'Всё равно начать смену';
+
+  @override
+  String get batteryGateTitle => 'Отключите экономию батареи';
+  @override
+  String get batteryGateBody =>
+      'Телефон может закрыть приложение во время смены ради экономии батареи. '
+      'Разрешите работу в фоне, чтобы отслеживание не прерывалось.';
+  @override
+  String get batteryGateAllow => 'Разрешить';
+  @override
+  String get batteryGateSkip => 'Не сейчас';
+
+  @override
+  String locationAge(Duration age) {
+    final hours = age.inHours;
+    final minutes = age.inMinutes.remainder(60);
+    if (hours > 0) return 'Последняя точка: $hours ч $minutes мин назад';
+    if (age.inMinutes > 0) {
+      return 'Последняя точка: ${age.inMinutes} мин назад';
+    }
+    return 'Последняя точка: меньше минуты назад';
+  }
+  @override
+  String locationAccuracy(int meters) => 'Точность: около $meters м';
+  @override
   String get retry => 'Повторить';
   @override
   String get openSettings => 'Настройки';
@@ -458,6 +550,15 @@ class StringsTm extends AppStrings {
   String get orderNo => 'Sargyt';
   @override
   String get callCustomer => 'Müşderä jaň et';
+  @override
+  String get openInMapsMe => 'MAPS.ME-de aç';
+  @override
+  String get mapsMeMissingTitle => 'MAPS.ME gurnalmadyk';
+  @override
+  String get mapsMeMissingMessage =>
+      'Sesli ugrukdyrma we oflaýn kartalar üçin MAPS.ME gurnaň.';
+  @override
+  String get mapsMeInstall => 'Gurnamak';
   @override
   String get buildingRoute => 'Ugur gurulýar…';
   @override
@@ -588,6 +689,55 @@ class StringsTm extends AppStrings {
   @override
   String get locationDeniedHint =>
       'Operator we müşderi sizi kartada görmeýär. Sazlamalarda rugsat beriň.';
+  @override
+  String get locationWaiting => 'Telefonyň koordinatlaryna garaşylýar';
+  @override
+  String get locationWaitingHint =>
+      'Täze ýerleşiş entek alynmady. Geolokasiýany açyň we açyk ýerde gaýtadan synanyşyň.';
+  @override
+  String get locationServiceOff => 'Telefonyň geolokasiýasy öçürilen';
+  @override
+  String get locationBackgroundHint =>
+      'Ekran ýapyk wagty işlemek üçin programmanyň sazlamalarynda geolokasiýa hemişelik rugsat beriň.';
+
+  @override
+  String get trackingNotificationChannel => 'Nobat yzarlamasy';
+  @override
+  String get trackingNotificationTitle => 'A7-TAGAM · Siz nobatdasyňyz';
+  @override
+  String get trackingNotificationSubtitle =>
+      'Ýerleşişiňiz operatora ugradylýar. Programmany ýapmaň.';
+
+  @override
+  String get backgroundGateTitle => 'Geolokasiýa «Hemişe» rugsat beriň';
+  @override
+  String get backgroundGateBody =>
+      'Bu rugsat bolmasa, ekran sönen badyna operatoryň kartasyndan ýitýärsiňiz. '
+      'Sazlamalary açyp «Hemişe rugsat ber» saýlaň.';
+  @override
+  String get backgroundGateStartAnyway => 'Şonda-da nobaty başla';
+
+  @override
+  String get batteryGateTitle => 'Batareýa tygşytlamasyny öçüriň';
+  @override
+  String get batteryGateBody =>
+      'Telefon batareýany tygşytlamak üçin nobat wagty programmany ýapyp biler. '
+      'Yzarlama kesilmez ýaly arka planda işlemäge rugsat beriň.';
+  @override
+  String get batteryGateAllow => 'Rugsat ber';
+  @override
+  String get batteryGateSkip => 'Häzir däl';
+
+  @override
+  String locationAge(Duration age) {
+    final hours = age.inHours;
+    final minutes = age.inMinutes.remainder(60);
+    if (hours > 0) return 'Soňky nokat: $hours sag $minutes min öň';
+    if (age.inMinutes > 0) return 'Soňky nokat: ${age.inMinutes} min öň';
+    return 'Soňky nokat: bir minutdan az öň';
+  }
+  @override
+  String locationAccuracy(int meters) => 'Takyklyk: takmynan $meters m';
   @override
   String get retry => 'Gaýtala';
   @override

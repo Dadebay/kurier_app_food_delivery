@@ -49,22 +49,10 @@ class AppConfig {
   static const Duration apiCacheMaxStale = Duration(days: 7);
 
   // ─── Live tracking ───────────────────────────────────────────
-  /// Position upload interval. One minute keeps the operator's map useful
-  /// while cutting an always-moving courier's requests by 75% compared with
-  /// the previous accidental 15-second interval.
-  static const Duration trackingInterval = Duration(minutes: 1);
+  /// Fresh stationary measurements also keep the server marker online.
+  static const Duration trackingInterval = Duration(seconds: 15);
 
-  /// Don't bother the server when the courier has not really moved.
-  static const double minTrackingDistanceMeters = 30;
-
-  /// How often the offline queue retries while the phone has signal.
   static const Duration queueFlushInterval = Duration(seconds: 30);
-
-  /// How many offline positions the phone keeps before the oldest are
-  /// dropped. At [trackingInterval] this is about twelve hours of driving —
-  /// long enough for any realistic dead zone, short enough that the box
-  /// cannot grow without bound on a phone that never regains signal.
-  static const int maxBufferedPings = 720;
 
   // ─── Misc ────────────────────────────────────────────────────
   static const String currency = 'TMT';

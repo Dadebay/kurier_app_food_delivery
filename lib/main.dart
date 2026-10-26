@@ -14,7 +14,6 @@ import 'core/services/connectivity_service.dart';
 import 'core/services/data_usage_service.dart';
 import 'core/services/firebase_messaging_service.dart';
 import 'core/services/location_service.dart';
-import 'core/services/network_locator_service.dart';
 import 'core/services/offline_queue_service.dart';
 import 'core/services/push_device_registration_service.dart';
 import 'core/services/tile_cache_service.dart';
@@ -38,18 +37,27 @@ Future<void> main() async {
   // Wiring is done here rather than in a service locator: the graph is small
   // and being able to read it top to bottom is worth more than the indirection.
   final api = ApiClient();
+  final authRepository = AuthRepository(api: api, prefs: prefs);
+  api.onUnauthorized = authRepository.refreshSession;
+  authRepository.restore();
   final connectivity = ConnectivityService();
   final queue = OfflineQueueService(api: api, connectivity: connectivity);
   await queue.init();
 
-  final location = LocationService(prefs: prefs);
-  // Last link of the positioning chain: satellites, then Android's own
-  // Wi-Fi/cell provider, then our server's network lookup.
-  final networkLocator = NetworkLocatorService(api: api);
-  location.networkFallback = networkLocator.locate;
+  // Built before the location service so the ongoing shift notification can
+  // read its text from the courier's own language, and re-read it when they
+  // switch language mid-shift.
+  final locale = LocaleProvider(prefs);
+  final location = LocationService(
+    prefs: prefs,
+    notification: () => (
+      channel: locale.strings.trackingNotificationChannel,
+      title: locale.strings.trackingNotificationTitle,
+      subtitle: locale.strings.trackingNotificationSubtitle,
+    ),
+  );
+  locale.addListener(location.refreshNotification);
   final tracking = TrackingService(location: location, queue: queue, api: api);
-  final authRepository = AuthRepository(api: api, prefs: prefs);
-  api.onUnauthorized = authRepository.refreshSession;
 
   // After `pushDevices` exists, so a rotated token can be re-sent to the
   // backend the moment FCM issues one — see FirebaseMessagingService.
@@ -58,6 +66,7 @@ Future<void> main() async {
     onTokenRefresh: pushDevices.register,
   );
   final courierRepository = CourierRepository(
+    prefs: prefs,
     api: api,
     queue: queue,
     signedInPhone: () => authRepository.signedInPhone,
@@ -72,7 +81,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: queue),
         ChangeNotifierProvider.value(value: location),
         ChangeNotifierProvider.value(value: tracking),
-        ChangeNotifierProvider(create: (_) => LocaleProvider(prefs)),
+        ChangeNotifierProvider.value(value: locale),
         ChangeNotifierProvider(
           create: (_) =>
               AuthProvider(authRepository, onSignedIn: pushDevices.register),

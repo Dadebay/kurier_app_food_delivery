@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../constants/app_config.dart';
 import '../models/branch.dart';
 import '../models/courier.dart';
@@ -19,10 +21,13 @@ class CourierRepository {
     required ApiClient api,
     required OfflineQueueService queue,
     String? Function()? signedInPhone,
+    SharedPreferences? prefs,
   }) : _api = api,
        _queue = queue,
-       _signedInPhone = signedInPhone;
+       _signedInPhone = signedInPhone,
+       _prefs = prefs;
 
+  final SharedPreferences? _prefs;
   final ApiClient _api;
   final OfflineQueueService _queue;
 
@@ -42,7 +47,11 @@ class CourierRepository {
   Future<Courier> me() async {
     if (AppConfig.useMockData) {
       await _demoDelay();
-      return MockData.courierFor(_signedInPhone?.call());
+      final owner = _signedInPhone?.call();
+      final courier = MockData.courierFor(owner);
+      return courier.copyWith(
+        onShift: _prefs?.getBool('courier.onShift.$owner') ?? courier.onShift,
+      );
     }
     // The backend deliberately reserves /users/me for CUSTOMER. A courier's
     // identity is already authenticated by the JWT used for all courier API
@@ -53,7 +62,7 @@ class CourierRepository {
       name: 'Kurýer',
       phone: phone,
       branchName: '',
-      onShift: true,
+      onShift: _prefs?.getBool('courier.onShift.$phone') ?? true,
     );
   }
 
@@ -86,8 +95,9 @@ class CourierRepository {
         );
       }
       results.addAll(
-        (data['items'] as List<dynamic>? ?? [])
-            .map((e) => DeliveryOrder.fromJson(e as Map<String, dynamic>)),
+        (data['items'] as List<dynamic>? ?? []).map(
+          (e) => DeliveryOrder.fromJson(e as Map<String, dynamic>),
+        ),
       );
 
       // Almost always a single page — a courier rarely carries 100+ active
@@ -150,11 +160,8 @@ class CourierRepository {
     OrderStatus.onTheWay => 'OUT_FOR_DELIVERY',
     OrderStatus.delivered => 'DELIVERED',
     OrderStatus.cashReturned => 'CASH_RETURNED',
-    OrderStatus.assigned ||
-    OrderStatus.pickedUp ||
-    OrderStatus.cancelled => throw ArgumentError(
-      'Kurýer bu ýagdaýy ugradyp bilmeýär: $status',
-    ),
+    OrderStatus.assigned || OrderStatus.pickedUp || OrderStatus.cancelled =>
+      throw ArgumentError('Kurýer bu ýagdaýy ugradyp bilmeýär: $status'),
   };
 
   /// "Забрал / Выехал / Доставил / Тапшырдым".
@@ -201,7 +208,10 @@ class CourierRepository {
   Future<void> setShift({
     required String courierId,
     required bool onShift,
-  }) async {}
+  }) async {
+    final owner = _signedInPhone?.call();
+    if (owner != null) await _prefs?.setBool('courier.onShift.$owner', onShift);
+  }
 
   static int _stamp() => DateTime.now().microsecondsSinceEpoch;
 

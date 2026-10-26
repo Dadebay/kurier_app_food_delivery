@@ -24,4 +24,5 @@ class AppIcons {
   static const HugeIconData history = HugeIcons.strokeRoundedClock01;
   static const HugeIconData checkSuccess = HugeIcons.strokeRoundedCheckmarkCircle02;
   static const HugeIconData home = HugeIcons.strokeRoundedHome01;
+  static const HugeIconData battery = HugeIcons.strokeRoundedBatteryCharging01;
 }

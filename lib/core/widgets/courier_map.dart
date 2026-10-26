@@ -74,9 +74,9 @@ class CourierMapState extends State<CourierMap> {
   void initState() {
     super.initState();
     final point = widget.courierPoint;
-    if (point != null) {
+    if (_usable(point)) {
       _firstFixApplied = true;
-      _move(point, AppConfig.followZoom);
+      _move(point!, AppConfig.followZoom);
     }
   }
 
@@ -88,21 +88,34 @@ class CourierMapState extends State<CourierMap> {
     super.didUpdateWidget(oldWidget);
 
     final point = widget.courierPoint;
-    if (point == null) return;
+    if (!_usable(point)) return;
+    final fix = point!;
 
     // Snap to the courier the first time GPS answers, wherever the camera was.
     if (!_firstFixApplied) {
       _firstFixApplied = true;
-      _move(point, AppConfig.followZoom);
+      _move(fix, AppConfig.followZoom);
       return;
     }
 
-    if (widget.follow && !_userMoved && point != oldWidget.courierPoint) {
-      _move(point, _controller.camera.zoom);
+    if (widget.follow && !_userMoved && fix != oldWidget.courierPoint) {
+      _move(fix, _controller.camera.zoom);
     }
   }
 
+  /// flutter_map turns a non-finite camera into NaN tile bounds and throws
+  /// out of its own tile layer — a crash no try/catch of ours can reach,
+  /// which takes the whole app down. Everything fed to the camera goes
+  /// through here first.
+  static bool _usable(LatLng? point) =>
+      point != null &&
+      point.latitude.isFinite &&
+      point.longitude.isFinite &&
+      point.latitude.abs() <= 90 &&
+      point.longitude.abs() <= 180;
+
   void _move(LatLng center, double zoom) {
+    if (!_usable(center) || !zoom.isFinite) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _controller.move(center, zoom);
     });
@@ -111,9 +124,9 @@ class CourierMapState extends State<CourierMap> {
   /// Re-centres on the courier — bound to the crosshair button.
   void recenter() {
     final point = widget.courierPoint;
-    if (point == null) return;
+    if (!_usable(point)) return;
     setState(() => _userMoved = false);
-    _controller.move(point, AppConfig.followZoom);
+    _controller.move(point!, AppConfig.followZoom);
   }
 
   /// Fits the whole route on screen.
@@ -123,13 +136,26 @@ class CourierMapState extends State<CourierMap> {
       ...widget.stops,
       if (widget.courierPoint != null) widget.courierPoint!,
       if (widget.branchPoint != null) widget.branchPoint!,
-    ];
+    ].where(_usable).toList();
     if (points.length < 2) return;
+
+    final bounds = LatLngBounds.fromPoints(points);
+    // Two points a few metres apart — a courier standing at the branch, or
+    // the same coordinate arriving twice — leave a box with no width. Asking
+    // the camera to fill the screen with that asks for infinite zoom, and
+    // flutter_map crashes computing the tiles for it. Centre on it instead.
+    const minimumSpan = 0.0005; // roughly 50 m
+    final spansLat = (bounds.north - bounds.south).abs() > minimumSpan;
+    final spansLng = (bounds.east - bounds.west).abs() > minimumSpan;
+    if (!spansLat && !spansLng) {
+      _move(bounds.center, AppConfig.followZoom);
+      return;
+    }
 
     setState(() => _userMoved = true);
     _controller.fitCamera(
       CameraFit.bounds(
-        bounds: LatLngBounds.fromPoints(points),
+        bounds: bounds,
         padding: widget.padding + const EdgeInsets.all(48),
       ),
     );

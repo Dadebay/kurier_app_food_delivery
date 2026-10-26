@@ -5,16 +5,19 @@
 
     <!-- Live courier tracking. Background access is what keeps the marker
          moving while the phone is in a pocket between deliveries. -->
-    <!-- Wi-Fi scanning feeds the server-side network positioning fallback used
-         when the phone itself cannot get a fix (tunnels, basements). -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- A courier's shift runs for hours with the screen off. Samsung, Xiaomi
+         and the like kill even a location foreground service to save battery,
+         which silently takes the courier off the operator's map; this is what
+         lets the app ask for an exemption. Requested from an explicit tap
+         before a shift starts, never at launch. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
     <!-- Android 13+ asks the courier for this at runtime; without it every
          push is dropped silently. FirebaseMessaging.requestPermission()
@@ -77,6 +80,14 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- "Открыть в MAPS.ME" button. Android 11+ hides other packages
+             unless they are declared here, and without this the launch fails
+             even when MAPS.ME is installed. -->
+        <package android:name="com.mapswithme.maps.pro"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
         </intent>
     </queries>
 </manifest>

@@ -15,9 +15,11 @@ class PendingAction {
     this.method = 'POST',
     required this.createdAt,
     this.attempts = 0,
+    this.ownerId,
   });
 
   final String id;
+  final String? ownerId;
   final PendingActionKind kind;
 
   /// Endpoint this action replays against.
@@ -31,6 +33,7 @@ class PendingAction {
 
   factory PendingAction.fromJson(Map<String, dynamic> json) => PendingAction(
     id: json['id'] as String,
+    ownerId: json['owner_id'] as String?,
     kind: PendingActionKind.values.firstWhere(
       (k) => k.name == json['kind'],
       orElse: () => PendingActionKind.status,
@@ -44,6 +47,7 @@ class PendingAction {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    if (ownerId != null) 'owner_id': ownerId,
     'kind': kind.name,
     'path': path,
     'body': body,

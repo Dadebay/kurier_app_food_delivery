@@ -1,187 +1,247 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../constants/app_config.dart';
+import '../models/location_fix.dart';
 import '../models/pending_action.dart';
 import '../network/api_client.dart';
 import 'connectivity_service.dart';
 
-/// Durable outbox for everything the courier does.
-///
-/// The rule is simple and has no "online" special case: a status tap is written
-/// to the Hive box first, and only then does the flusher try to send it. If the
-/// app is killed in a lift with no signal, the tap is still on disk and goes out
-/// on the next launch.
-///
-/// Positions captured with no signal are kept, not collapsed: the courier's
-/// whole offline stretch goes out oldest-first once the connection is back.
+/// Durable ordered status writes; only the newest location is useful to the
+/// backend's latest-position endpoint. Every new action is scoped to its owner.
 class OfflineQueueService extends ChangeNotifier {
-  OfflineQueueService({required ApiClient api, required ConnectivityService connectivity})
-    : _api = api,
-      _connectivity = connectivity {
+  OfflineQueueService({
+    required ApiClient api,
+    required ConnectivityService connectivity,
+  }) : _api = api,
+       _connectivity = connectivity {
     _connectivity.addListener(_onConnectivityChanged);
   }
 
   static const String boxName = 'pending_actions';
-
   final ApiClient _api;
   final ConnectivityService _connectivity;
-
   late final Box<String> _box;
   Timer? _timer;
-  bool _flushing = false;
+  Future<void>? _flushInFlight;
+  bool _flushAgain = false;
+  Future<void>? _pingInFlight;
+  String? _trackingOwner;
+  int _trackingGeneration = 0;
   bool _ready = false;
-
-  /// How many writes are still waiting — drives the "2 статуса в очереди"
-  /// line on the route screen.
-  int get pendingCount => _ready ? _box.length : 0;
-
-  bool get hasPending => pendingCount > 0;
-
-  /// Positions still on the phone, waiting for a connection.
-  int get pendingPingCount => _ready ? _countPings() : 0;
-
+  bool _disposed = false;
+  DateTime? _retryAfter;
+  DateTime? _lastPingSentAt;
   int _syncedPingCount = 0;
-
-  /// Positions this session has successfully handed to the server — the
-  /// courier's proof that the offline stretch actually went out.
-  int get syncedPingCount => _syncedPingCount;
-
-  int _countPings() {
-    var count = 0;
-    for (final key in _box.keys) {
-      final raw = _box.get(key);
-      if (raw == null) continue;
-      if (PendingAction.decode(raw).kind == PendingActionKind.ping) count++;
-    }
-    return count;
-  }
-
-  /// Fires whenever a queued write is rejected outright (409/403) rather than
-  /// just failing to reach the server — the caller's local state is now
-  /// provably stale and needs a fresh read, not a retry of the same write.
   final _conflicts = StreamController<void>.broadcast();
+
   Stream<void> get conflicts => _conflicts.stream;
+  int get pendingCount => _ready ? _box.length : 0;
+  bool get hasPending => pendingCount > 0;
+  int get pendingPingCount => _ready
+      ? _box.values
+            .where(
+              (raw) => PendingAction.decode(raw).kind == PendingActionKind.ping,
+            )
+            .length
+      : 0;
+  int get syncedPingCount => _syncedPingCount;
+  DateTime? get lastPingSentAt => _lastPingSentAt;
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
 
   Future<void> init() async {
     _box = await Hive.openBox<String>(boxName);
     _ready = true;
-    _timer = Timer.periodic(AppConfig.queueFlushInterval, (_) => flush());
-    unawaited(flush());
-    notifyListeners();
-  }
-
-  /// Records an action and immediately tries to send it.
-  ///
-  /// Queued positions used to be collapsed to the newest one, which threw away
-  /// every point captured in a dead zone. They are kept now so the driven line
-  /// survives the outage; only the buffer's own ceiling drops anything, and it
-  /// drops the oldest.
-  Future<void> enqueue(PendingAction action) async {
-    if (!_ready) return;
-
-    await _box.put(action.id, action.encode());
-    if (action.kind == PendingActionKind.ping) await _trimPingBuffer();
-    notifyListeners();
-    unawaited(flush());
-  }
-
-  /// Keeps the newest [AppConfig.maxBufferedPings] positions. A phone that
-  /// never regains signal would otherwise fill its storage with a track
-  /// nobody can use any more.
-  Future<void> _trimPingBuffer() async {
-    final pings = <String, DateTime>{};
-    for (final key in _box.keys) {
-      final raw = _box.get(key);
-      if (raw == null) continue;
-      final action = PendingAction.decode(raw);
-      if (action.kind == PendingActionKind.ping) {
-        pings[key.toString()] = action.createdAt;
-      }
-    }
-    if (pings.length <= AppConfig.maxBufferedPings) return;
-
-    final oldestFirst = pings.keys.toList()
-      ..sort((a, b) => pings[a]!.compareTo(pings[b]!));
-    await _box.deleteAll(
-      oldestFirst.take(pings.length - AppConfig.maxBufferedPings),
+    // No running shift has been restored yet. Never replay the previous
+    // process's pings before the user/session and location service are ready.
+    await _deletePings();
+    _timer = Timer.periodic(
+      AppConfig.queueFlushInterval,
+      (_) => unawaited(flush()),
     );
+    unawaited(flush());
+    _notify();
   }
 
-  /// Sends everything in the box, oldest first, stopping at the first failure
-  /// so ordering is preserved (a "delivered" never overtakes a "picked up").
-  Future<void> flush() async {
-    if (!_ready || _flushing || _box.isEmpty) return;
-    if (_connectivity.offline) return;
-    if (AppConfig.useMockData) {
-      // Demo mode: nothing to talk to, so drain the box to keep the UI honest.
-      await _box.clear();
-      notifyListeners();
+  void beginTracking(String owner) {
+    _trackingOwner = owner;
+    _trackingGeneration++;
+    _lastPingSentAt = null;
+    _syncedPingCount = 0;
+  }
+
+  /// Synchronous barrier: no queued request or 401 retry may start after this.
+  void suspendTracking() {
+    _trackingOwner = null;
+    _trackingGeneration++;
+  }
+
+  Future<void> discardTracking() async {
+    await _pingInFlight;
+    if (_ready) await _deletePings();
+    _notify();
+  }
+
+  Future<void> _deletePings() => _box.deleteAll(
+    _box.keys.where((key) {
+      final raw = _box.get(key);
+      return raw != null &&
+          PendingAction.decode(raw).kind == PendingActionKind.ping;
+    }).toList(),
+  );
+
+  Future<void> enqueue(PendingAction action) async {
+    if (!_ready) throw StateError('Offline queue has not been initialized');
+    final owner = action.ownerId ?? _api.accountId;
+    if (owner == null || owner != _api.accountId) return;
+    if (action.kind == PendingActionKind.ping && _trackingOwner != owner) {
       return;
     }
+    final owned = PendingAction.fromJson({
+      ...action.toJson(),
+      'owner_id': owner,
+    });
+    // A stable slot coalesces offline fixes. The raw-value comparison in flush
+    // protects a newer fix from completion/failure of an older HTTP request.
+    final key = action.kind == PendingActionKind.ping
+        ? 'ping:$owner'
+        : action.id;
+    await _box.put(key, owned.encode());
+    _notify();
+    unawaited(flush());
+  }
 
-    _flushing = true;
+  Future<void> flush() {
+    if (_flushInFlight != null) {
+      _flushAgain = true;
+      return _flushInFlight!;
+    }
+    final future = _drain();
+    _flushInFlight = future;
+    unawaited(
+      future.then((_) {
+        if (identical(_flushInFlight, future)) _flushInFlight = null;
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _drain() async {
+    do {
+      _flushAgain = false;
+      await _flush();
+    } while (_flushAgain && !_disposed);
+  }
+
+  Future<void> _flush() async {
+    if (!_ready ||
+        _disposed ||
+        _box.isEmpty ||
+        _connectivity.offline ||
+        !_api.authenticated) {
+      return;
+    }
+    if (_retryAfter != null && DateTime.now().isBefore(_retryAfter!)) return;
+    final owner = _api.accountId;
+    final session = _api.sessionGeneration;
     try {
       final keys = _box.keys.toList()
-        ..sort((a, b) {
-          final left = PendingAction.decode(_box.get(a)!).createdAt;
-          final right = PendingAction.decode(_box.get(b)!).createdAt;
-          return left.compareTo(right);
-        });
-
+        ..sort(
+          (a, b) => PendingAction.decode(
+            _box.get(a)!,
+          ).createdAt.compareTo(PendingAction.decode(_box.get(b)!).createdAt),
+        );
       for (final key in keys) {
+        if (_disposed ||
+            owner != _api.accountId ||
+            session != _api.sessionGeneration) {
+          break;
+        }
         final raw = _box.get(key);
         if (raw == null) continue;
         final action = PendingAction.decode(raw);
-
-        try {
-          final response = switch (action.method) {
-            'PATCH' => await _api.patch(action.path, data: action.body),
-            'PUT' => await _api.put(action.path, data: action.body),
-            _ => await _api.post(action.path, data: action.body),
-          };
-          final code = response.statusCode ?? 0;
-
-          if (code >= 200 && code < 300) {
-            await _box.delete(key);
-            if (action.kind == PendingActionKind.ping) _syncedPingCount++;
+        // Legacy actions with unknown owners stay on disk for reconciliation;
+        // never silently assign another courier's offline action at login.
+        if (action.ownerId != owner) continue;
+        final ping = action.kind == PendingActionKind.ping;
+        final generation = _trackingGeneration;
+        bool allowed() =>
+            !ping ||
+            (_trackingOwner == owner && generation == _trackingGeneration);
+        if (ping) {
+          final at = DateTime.tryParse(
+            action.body['recordedAt'] as String? ?? '',
+          );
+          final age = at == null ? null : DateTime.now().difference(at);
+          if (!allowed() ||
+              age == null ||
+              age.isNegative ||
+              age > LocationFix.freshness) {
+            if (_box.get(key) == raw) await _box.delete(key);
             continue;
           }
-
-          // 4xx means the server rejected this action outright — replaying it
-          // forever would wedge the queue, so drop it and move on.
+        }
+        final done = Completer<void>();
+        if (ping) _pingInFlight = done.future;
+        try {
+          final response = AppConfig.useMockData
+              ? null
+              : await _api.sendQueued(action, stillAllowed: allowed);
+          final code =
+              response?.statusCode ?? (AppConfig.useMockData ? 200 : 0);
+          if (code >= 200 && code < 300) {
+            if (_box.get(key) == raw) await _box.delete(key);
+            if (ping && allowed()) {
+              _syncedPingCount++;
+              _lastPingSentAt = DateTime.now();
+            }
+            continue;
+          }
+          // Authentication/network/rate-limit failures are retryable writes.
+          if (code == 401 ||
+              code == 408 ||
+              code == 429 ||
+              code >= 500 ||
+              code == 0) {
+            final retrySeconds = int.tryParse(
+              response?.headers.value('retry-after') ?? '',
+            );
+            _retryAfter = DateTime.now().add(
+              retrySeconds != null &&
+                      retrySeconds > AppConfig.queueFlushInterval.inSeconds
+                  ? Duration(seconds: retrySeconds)
+                  : AppConfig.queueFlushInterval,
+            );
+            break;
+          }
           if (code >= 400 && code < 500) {
-            dev.log('dropping ${action.kind.name} ${action.id}: HTTP $code', name: 'OfflineQueue');
-            await _box.delete(key);
-            // A status write specifically rejected as a conflict (stale
-            // version) or forbidden (wrong courier / illegal transition)
-            // means the local order is no longer trustworthy — the screen
-            // must re-fetch it rather than keep showing the optimistic state.
+            if (_box.get(key) == raw) await _box.delete(key);
             if (action.kind == PendingActionKind.status &&
-                (code == 409 || code == 403)) {
+                (code == 403 || code == 409)) {
               _conflicts.add(null);
             }
             continue;
           }
-
-          // 5xx / unknown: keep it and retry on the next tick.
-          action.attempts++;
-          await _box.put(key, action.encode());
           break;
-        } catch (error) {
-          // Network died mid-flush. Stop here; ordering stays intact.
-          action.attempts++;
-          await _box.put(key, action.encode());
-          dev.log('flush stopped: $error', name: 'OfflineQueue');
+        } catch (_) {
+          if (_box.get(key) == raw && allowed()) {
+            action.attempts++;
+            await _box.put(key, action.encode());
+          }
           break;
+        } finally {
+          done.complete();
+          if (ping && identical(_pingInFlight, done.future)) {
+            _pingInFlight = null;
+          }
         }
       }
     } finally {
-      _flushing = false;
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -191,6 +251,8 @@ class OfflineQueueService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    suspendTracking();
     _timer?.cancel();
     _connectivity.removeListener(_onConnectivityChanged);
     unawaited(_conflicts.close());
