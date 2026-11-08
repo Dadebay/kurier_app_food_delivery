@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Naharym palette, taken straight from the approved courier mock-ups
-/// (`Naharym-mockups-RU/courier_list.png`, `courier_route.png`).
+/// A7-TAGAM courier palette.
 class AppColors {
   const AppColors._();
 

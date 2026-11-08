@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kurier_app/core/services/data_usage_service.dart';
+import 'package:a7_tagam_kurier/core/services/data_usage_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,8 +65,7 @@ void main() {
       'data_usage_mobile_bytes': 1000,
       'data_usage_wifi_bytes': 0,
       // One inside the window, one well past it.
-      'data_usage_history':
-          '{"2026-08-20":[400,0],"2026-07-01":[999999,0]}',
+      'data_usage_history': '{"2026-08-20":[400,0],"2026-07-01":[999999,0]}',
     });
     final prefs = await SharedPreferences.getInstance();
     final service = DataUsageService(

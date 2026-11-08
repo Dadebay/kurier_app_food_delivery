@@ -30,7 +30,11 @@ class NextStopCard extends StatelessWidget {
         color: AppColors.green,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(color: Color(0x26000000), blurRadius: 16, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -43,7 +47,10 @@ class NextStopCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: AppText.label.copyWith(color: AppColors.greenMuted, fontSize: 12),
+                  style: AppText.label.copyWith(
+                    color: AppColors.greenMuted,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -61,12 +68,17 @@ class NextStopCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                distanceKm == null ? '—' : distanceKm!.toStringAsFixed(1).replaceAll('.', ','),
+                distanceKm == null
+                    ? '—'
+                    : distanceKm!.toStringAsFixed(1).replaceAll('.', ','),
                 style: AppText.h1.copyWith(fontSize: 30),
               ),
               Text(
                 km,
-                style: AppText.bodyMuted.copyWith(color: AppColors.greenMuted, fontSize: 13),
+                style: AppText.bodyMuted.copyWith(
+                  color: AppColors.greenMuted,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),

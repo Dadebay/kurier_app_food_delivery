@@ -17,7 +17,10 @@ class OrderDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.s;
-    final itemsTotal = order.items.fold<double>(0, (sum, item) => sum + item.price * item.quantity);
+    final itemsTotal = order.items.fold<double>(
+      0,
+      (sum, item) => sum + item.price * item.quantity,
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text('${s.orderNo} №${order.number}')),
@@ -69,9 +72,15 @@ class OrderDetailScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text('${item.quantity} × ${item.name}', style: AppText.body),
+                          child: Text(
+                            '${item.quantity} × ${item.name}',
+                            style: AppText.body,
+                          ),
                         ),
-                        Text(Fmt.money(item.price * item.quantity), style: AppText.body),
+                        Text(
+                          Fmt.money(item.price * item.quantity),
+                          style: AppText.body,
+                        ),
                       ],
                     ),
                   ),
@@ -120,7 +129,10 @@ class _Section extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

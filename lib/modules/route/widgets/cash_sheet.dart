@@ -95,7 +95,12 @@ class CashSheet extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value, this.color, this.emphasised = false});
+  const _Row({
+    required this.label,
+    required this.value,
+    this.color,
+    this.emphasised = false,
+  });
 
   final String label;
   final String value;
@@ -116,7 +121,10 @@ class _Row extends StatelessWidget {
           Expanded(child: Text(label, style: AppText.bodyMuted)),
           Text(
             value,
-            style: AppText.figure.copyWith(color: color, fontSize: emphasised ? 19 : 17),
+            style: AppText.figure.copyWith(
+              color: color,
+              fontSize: emphasised ? 19 : 17,
+            ),
           ),
         ],
       ),

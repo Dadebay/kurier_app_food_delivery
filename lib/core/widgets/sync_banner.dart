@@ -62,7 +62,11 @@ class SyncBanner extends StatelessWidget {
                     child: Row(
                       children: [
                         if (sentPings > 0) ...[
-                          Icon(Icons.check, size: 13, color: AppColors.greenLight),
+                          Icon(
+                            Icons.check,
+                            size: 13,
+                            color: AppColors.greenLight,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             s.locationsSent(sentPings),

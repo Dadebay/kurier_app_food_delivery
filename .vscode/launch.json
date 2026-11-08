@@ -6,18 +6,18 @@
     "configurations": [
     
         {
-            "name": "kurier_app",
+            "name": "A7-TAGAM Kurier",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "kurier_app (profile mode)",
+            "name": "A7-TAGAM Kurier (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "kurier_app (release mode)",
+            "name": "A7-TAGAM Kurier (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

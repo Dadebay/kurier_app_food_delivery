@@ -158,8 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
       await auth.requestCode('+993${_phone.text}');
     } on OtpRequestException catch (e) {
       if (!mounted) return;
-      final message = e.isRateLimited ? s.otpTooManyRequests : s.otpRequestFailed;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      final message = e.isRateLimited
+          ? s.otpTooManyRequests
+          : s.otpRequestFailed;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 

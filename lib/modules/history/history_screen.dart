@@ -76,7 +76,9 @@ class HistoryScreen extends StatelessWidget {
   }
 
   void _openDetail(BuildContext context, DeliveryOrder order) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
   }
 
   /// Splits an already date-sorted order list into calendar-day runs and
@@ -145,7 +147,10 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(color: AppColors.gold, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        color: AppColors.gold,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -153,18 +158,30 @@ class _SummaryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(dayTotalLabel, style: AppText.label.copyWith(color: AppColors.green)),
+                Text(
+                  dayTotalLabel,
+                  style: AppText.label.copyWith(color: AppColors.green),
+                ),
                 const SizedBox(height: 6),
-                Text(deliveriesLabel, style: AppText.figure.copyWith(fontSize: 20)),
+                Text(
+                  deliveriesLabel,
+                  style: AppText.figure.copyWith(fontSize: 20),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(cashOnHandLabel, style: AppText.label.copyWith(color: AppColors.green)),
+              Text(
+                cashOnHandLabel,
+                style: AppText.label.copyWith(color: AppColors.green),
+              ),
               const SizedBox(height: 6),
-              Text(Fmt.money(cashOnHand), style: AppText.figure.copyWith(fontSize: 20)),
+              Text(
+                Fmt.money(cashOnHand),
+                style: AppText.figure.copyWith(fontSize: 20),
+              ),
             ],
           ),
         ],
@@ -234,7 +251,11 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HugeIcon(icon: AppIcons.package, color: AppColors.textMuted, size: 56),
+            const HugeIcon(
+              icon: AppIcons.package,
+              color: AppColors.textMuted,
+              size: 56,
+            ),
             const SizedBox(height: 16),
             Text(hint, textAlign: TextAlign.center, style: AppText.bodyMuted),
           ],

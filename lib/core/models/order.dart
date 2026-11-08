@@ -59,40 +59,54 @@ class DeliveryOrder {
   int version;
 
   /// How much change the courier must hand back.
-  double? get changeDue =>
-      changeFrom == null ? null : (changeFrom! - total).clamp(0, double.infinity);
+  double? get changeDue => changeFrom == null
+      ? null
+      : (changeFrom! - total).clamp(0, double.infinity);
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    if (rawId == null || rawId.toString().trim().isEmpty) {
+      throw const FormatException('Order id is required');
+    }
     final customer = json['customer'] as Map<String, dynamic>? ?? const {};
     return DeliveryOrder(
-    id: json['id'].toString(),
-    number: json['number'] as int,
-    status: OrderStatus.fromWire(json['status'] as String?),
-    address: json['address'] is Map<String, dynamic>
-        ? DeliveryAddress.fromJson(json['address'] as Map<String, dynamic>)
-        : DeliveryAddress(
-            district: json['address'] as String? ?? '',
-            house: '',
-            entrance: json['entrance'] as String?,
-            floor: json['floor'] as String?,
-            point: LatLng((json['latitude'] as num).toDouble(), (json['longitude'] as num).toDouble()),
-          ),
-    customerName: [customer['firstName'], customer['lastName']].whereType<String>().where((value) => value.isNotEmpty).join(' '),
-    customerPhone: customer['phone'] as String? ?? '',
-    total: (json['total'] as num).toDouble(),
-    changeFrom: (json['change_from'] as num?)?.toDouble(),
-    items: (json['items'] as List<dynamic>? ?? [])
-        .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
-        .toList(),
-    branchName: json['branchName'] as String? ?? json['branch_name'] as String? ?? '',
-    assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? '') ?? DateTime.parse(json['createdAt'] as String),
-    distanceKm: (json['distance_km'] as num?)?.toDouble(),
-    comment: json['customerNote'] as String? ?? json['comment'] as String?,
-    completedAt: json['completed_at'] == null
-        ? null
-        : DateTime.parse(json['completed_at'] as String),
-    version: json['version'] as int? ?? 1,
-  );
+      id: rawId.toString(),
+      number: json['number'] as int,
+      status: OrderStatus.fromWire(json['status'] as String?),
+      address: json['address'] is Map<String, dynamic>
+          ? DeliveryAddress.fromJson(json['address'] as Map<String, dynamic>)
+          : DeliveryAddress(
+              district: json['address'] as String? ?? '',
+              house: '',
+              entrance: json['entrance'] as String?,
+              floor: json['floor'] as String?,
+              point: LatLng(
+                (json['latitude'] as num).toDouble(),
+                (json['longitude'] as num).toDouble(),
+              ),
+            ),
+      customerName: [
+        customer['firstName'],
+        customer['lastName'],
+      ].whereType<String>().where((value) => value.isNotEmpty).join(' '),
+      customerPhone: customer['phone'] as String? ?? '',
+      total: (json['total'] as num).toDouble(),
+      changeFrom: (json['change_from'] as num?)?.toDouble(),
+      items: (json['items'] as List<dynamic>? ?? [])
+          .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      branchName:
+          json['branchName'] as String? ?? json['branch_name'] as String? ?? '',
+      assignedAt:
+          DateTime.tryParse(json['assignedAt'] as String? ?? '') ??
+          DateTime.parse(json['createdAt'] as String),
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      comment: json['customerNote'] as String? ?? json['comment'] as String?,
+      completedAt: json['completed_at'] == null
+          ? null
+          : DateTime.parse(json['completed_at'] as String),
+      version: json['version'] as int? ?? 1,
+    );
   }
 
   Map<String, dynamic> toJson() => {
@@ -114,7 +128,11 @@ class DeliveryOrder {
 }
 
 class OrderItem {
-  const OrderItem({required this.name, required this.quantity, required this.price});
+  const OrderItem({
+    required this.name,
+    required this.quantity,
+    required this.price,
+  });
 
   final String name;
   final int quantity;
@@ -126,5 +144,9 @@ class OrderItem {
     price: ((json['unitPrice'] ?? json['price']) as num).toDouble(),
   );
 
-  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity, 'price': price};
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'quantity': quantity,
+    'price': price,
+  };
 }

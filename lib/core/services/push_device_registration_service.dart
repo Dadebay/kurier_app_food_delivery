@@ -42,14 +42,13 @@ class PushDeviceRegistrationService {
         throw StateError('API returned ${response.statusCode}');
       }
       developer.log('Push device registered', name: 'Kurier Push');
-    } catch (error, stackTrace) {
+    } catch (error) {
       // Never fatal: a courier who cannot register for push must still be
       // able to work the shift.
       developer.log(
         'Push device registration failed; the app remains usable.',
         name: 'Kurier Push',
-        error: error,
-        stackTrace: stackTrace,
+        error: error.runtimeType,
       );
     }
   }

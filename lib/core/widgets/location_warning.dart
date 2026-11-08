@@ -25,7 +25,10 @@ class LocationWarning extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.redSoft, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: AppColors.redSoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,7 +41,10 @@ class LocationWarning extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _Action(label: s.retry, onTap: () => context.read<LocationService>().start()),
+              _Action(
+                label: s.retry,
+                onTap: () => context.read<LocationService>().start(),
+              ),
               const SizedBox(width: 10),
               _Action(label: s.openSettings, onTap: openAppSettings),
             ],
@@ -65,7 +71,10 @@ class _Action extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(label, style: AppText.chip.copyWith(color: AppColors.green)),
+          child: Text(
+            label,
+            style: AppText.chip.copyWith(color: AppColors.green),
+          ),
         ),
       ),
     );

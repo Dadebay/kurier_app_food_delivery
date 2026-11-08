@@ -87,7 +87,7 @@ class LocationService extends ChangeNotifier {
     if (!_isValidCoordinate(lat, lng)) return;
     _current = LatLng(lat, lng);
     _currentAt = at;
-    _trace('restored last known fix $_current from $at');
+    _trace('restored last known fix from $at');
   }
 
   void _rememberLastFix() {
@@ -148,7 +148,7 @@ class LocationService extends ChangeNotifier {
       return inFlight;
     }
     if (ready && _sub != null) {
-      _trace('start reuses the active location stream current=$_current');
+      _trace('start reuses the active location stream');
       return Future.value(true);
     }
 
@@ -164,7 +164,7 @@ class LocationService extends ChangeNotifier {
 
   Future<bool> _start() async {
     _trace(
-      'start current=$_current service=$_serviceEnabled '
+      'start hasFix=${_current != null} service=$_serviceEnabled '
       'foreground=$_permissionGranted background=$_backgroundGranted',
     );
     try {
@@ -251,9 +251,7 @@ class LocationService extends ChangeNotifier {
           'background=$_backgroundGranted',
         );
       } else {
-        _success(
-          'start complete current=$_current background=$_backgroundGranted',
-        );
+        _success('start complete hasFix=true background=$_backgroundGranted');
       }
 
       _error = null;
@@ -400,7 +398,7 @@ class LocationService extends ChangeNotifier {
       );
       _onData(data);
       if (_current != null) {
-        _success('one-shot fallback produced $_current');
+        _success('one-shot fallback produced a fix');
       }
     } on TimeoutException {
       _warning('one-shot fallback timed out');
@@ -417,7 +415,8 @@ class LocationService extends ChangeNotifier {
     if (resolve == null) return;
     try {
       final point = await resolve();
-      if (point == null || !_isValidCoordinate(point.latitude, point.longitude)) {
+      if (point == null ||
+          !_isValidCoordinate(point.latitude, point.longitude)) {
         _warning('network positioning returned nothing');
         return;
       }
@@ -426,7 +425,7 @@ class LocationService extends ChangeNotifier {
       _rememberLastFix();
       final firstFix = _firstFixCompleter;
       if (firstFix != null && !firstFix.isCompleted) firstFix.complete(point);
-      _success('network positioning produced $point');
+      _success('network positioning produced a fix');
       notifyListeners();
     } catch (error) {
       _warning('network positioning failed: $error');
@@ -437,9 +436,7 @@ class LocationService extends ChangeNotifier {
     final lat = data.latitude;
     final lng = data.longitude;
     if (lat == null || lng == null || !_isValidCoordinate(lat, lng)) {
-      _warning(
-        'rejected GPS value lat=$lat lng=$lng accuracy=${data.accuracy}',
-      );
+      _warning('rejected GPS value accuracy=${data.accuracy}');
       return;
     }
 
@@ -458,7 +455,7 @@ class LocationService extends ChangeNotifier {
     _speed = data.speed;
     _rememberLastFix();
     _success(
-      'GPS accepted lat=$lat lng=$lng accuracy=$_accuracy '
+      'GPS accepted accuracy=$_accuracy '
       'heading=$_heading speed=$_speed',
     );
     notifyListeners();
@@ -474,7 +471,7 @@ class LocationService extends ChangeNotifier {
   /// One-off fix, used before the stream has produced anything.
   Future<LatLng?> currentOrFix() async {
     if (_current != null) {
-      _trace('currentOrFix uses cached point=$_current');
+      _trace('currentOrFix uses cached point');
       return _current;
     }
     if (!ready && !await start()) {
@@ -483,14 +480,14 @@ class LocationService extends ChangeNotifier {
     }
     final point = await _waitForFirstFix();
     if (point != null) {
-      _trace('currentOrFix stream result=$point');
+      _trace('currentOrFix received stream fix');
       return point;
     }
     // Nothing from the stream: try the system's own answer once more before
     // reporting no position at all. A skipped ping leaves a hole in the
     // courier's track; a Wi-Fi/cell fix is worth far more than nothing.
     await _oneShotFallback();
-    _trace('currentOrFix fallback result=$_current');
+    _trace('currentOrFix fallback hasFix=${_current != null}');
     return _current;
   }
 

@@ -86,8 +86,9 @@ class CourierRepository {
         );
       }
       results.addAll(
-        (data['items'] as List<dynamic>? ?? [])
-            .map((e) => DeliveryOrder.fromJson(e as Map<String, dynamic>)),
+        (data['items'] as List<dynamic>? ?? []).map(
+          (e) => DeliveryOrder.fromJson(e as Map<String, dynamic>),
+        ),
       );
 
       // Almost always a single page — a courier rarely carries 100+ active
@@ -134,10 +135,10 @@ class CourierRepository {
     final list = data is List<dynamic>
         ? data.cast<Map<String, dynamic>>().map(Branch.fromJson).toList()
         : <Branch>[];
-    return list.firstWhere(
-      (b) => b.isPrimary,
-      orElse: () => list.isNotEmpty ? list.first : MockData.branch,
-    );
+    if (list.isEmpty) {
+      throw const FormatException('No branch returned by the server');
+    }
+    return list.firstWhere((b) => b.isPrimary, orElse: () => list.first);
   }
 
   // ─── Writes (always queued) ──────────────────────────────────
@@ -150,11 +151,8 @@ class CourierRepository {
     OrderStatus.onTheWay => 'OUT_FOR_DELIVERY',
     OrderStatus.delivered => 'DELIVERED',
     OrderStatus.cashReturned => 'CASH_RETURNED',
-    OrderStatus.assigned ||
-    OrderStatus.pickedUp ||
-    OrderStatus.cancelled => throw ArgumentError(
-      'Kurýer bu ýagdaýy ugradyp bilmeýär: $status',
-    ),
+    OrderStatus.assigned || OrderStatus.pickedUp || OrderStatus.cancelled =>
+      throw ArgumentError('Kurýer bu ýagdaýy ugradyp bilmeýär: $status'),
   };
 
   /// "Забрал / Выехал / Доставил / Тапшырдым".

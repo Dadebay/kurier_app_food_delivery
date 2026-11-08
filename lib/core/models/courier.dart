@@ -26,12 +26,15 @@ class Courier {
 
   factory Courier.fromJson(Map<String, dynamic> json) => Courier(
     id: json['id'].toString(),
-    name: json['name'] as String? ?? [json['firstName'], json['lastName']]
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .join(' '),
+    name:
+        json['name'] as String? ??
+        [
+          json['firstName'],
+          json['lastName'],
+        ].whereType<String>().where((value) => value.isNotEmpty).join(' '),
     phone: json['phone'] as String? ?? '',
-    branchName: json['branchName'] as String? ?? json['branch_name'] as String? ?? '',
+    branchName:
+        json['branchName'] as String? ?? json['branch_name'] as String? ?? '',
     onShift: json['onShift'] as bool? ?? json['on_shift'] as bool? ?? true,
   );
 
@@ -67,5 +70,9 @@ class ShiftSummary {
     handedOver: (json['handed_over'] as num?)?.toDouble() ?? 0,
   );
 
-  static const empty = ShiftSummary(deliveredCount: 0, cashOnHand: 0, handedOver: 0);
+  static const empty = ShiftSummary(
+    deliveredCount: 0,
+    cashOnHand: 0,
+    handedOver: 0,
+  );
 }

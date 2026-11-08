@@ -54,15 +54,13 @@ class NetworkLocatorService {
       if (lat == null || lng == null || !lat.isFinite || !lng.isFinite) {
         return null;
       }
-      _log('network fix $lat,$lng accuracy=${data['accuracy']}');
       return LatLng(lat, lng);
-    } catch (error, stackTrace) {
+    } catch (error) {
       // Never fatal: the courier keeps whatever position they already had.
       dev.log(
         'network positioning failed',
         name: 'NetworkLocator',
-        error: error,
-        stackTrace: stackTrace,
+        error: error.runtimeType,
       );
       return null;
     }

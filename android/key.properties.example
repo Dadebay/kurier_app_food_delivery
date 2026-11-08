@@ -1,0 +1,6 @@
+# Copy to android/key.properties and replace these placeholders locally.
+# Keep the keystore outside this repository. Never commit the real file.
+storeFile=/absolute/path/to/a7-tagam-kurier-release.jks
+storePassword=REPLACE_LOCALLY
+keyAlias=REPLACE_LOCALLY
+keyPassword=REPLACE_LOCALLY
