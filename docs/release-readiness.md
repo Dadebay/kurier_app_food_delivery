@@ -6,7 +6,7 @@ Checked on 8 November 2026 against the Flutter project cloned from `Dadebay/kuri
 
 - **Done:** Android-only Flutter project, package ID `com.gurbanov.kurier`, version `1.0.0+1`. Flutter 3.47.8, Dart 3.13.7, Android Gradle Plugin 8.11.1, Gradle 8.14.0.
 - **Done:** Baseline tests passed. Baseline analysis failed because `pubspec.yaml` named a nonexistent `assets/images/` directory. The first release build attempt could not download Gradle (GitHub HTTP 504), and local Flutter selected Java 25, which is incompatible with this wrapper.
-- **Done:** Removed the nonexistent asset reference. Analysis and tests pass; an unsigned Android release builds with cached Gradle 8.14 and JDK 17. CI selects JDK 17 explicitly.
+- **Done:** Removed the nonexistent asset reference. Analysis and tests pass; Android release builds with cached Gradle 8.14 and JDK 17. CI selects JDK 17 explicitly and builds unsigned because it has no signing key.
 - **N/A:** iOS, TestFlight, and App Store Connect. This repository has no iOS project.
 
 ## 2. Critical behavior and data safety
@@ -27,23 +27,24 @@ Checked on 8 November 2026 against the Flutter project cloned from `Dadebay/kuri
 ## 4. Quality, accessibility, and performance
 
 - **Done:** System text scaling is no longer forcibly disabled. Formatting, static analysis, unit tests, and the Android release build pass locally.
-- **Pending:** Check large text, small screens, dark mode, TalkBack, keyboard, permission prompts, and offline/error states on supported devices. No startup, memory, rebuild, image, or bundle-size improvement is claimed without measurements. The unsigned release APK is about 59 MiB.
+- **Pending:** Check large text, small screens, dark mode, TalkBack, keyboard, permission prompts, and offline/error states on supported devices. No startup, memory, rebuild, image, or bundle-size improvement is claimed without measurements. The signed release APK is about 59 MiB.
 
 ## 5. Security and platform configuration
 
-- **Done:** Android releases no longer use the debug signing key. `android/key.properties`, keystores, and local environment files are ignored. Production signing requires a project-specific key outside Git. OTP codes, push tokens, order identifiers, and precise coordinates were removed from application diagnostics.
+- **Done:** Android releases no longer use the debug signing key. `android/key.properties`, keystores, and local environment files are ignored. A new project-specific release key is held outside Git in `/Users/dadebay/Developer/apps/Project Keys/A7-TAGAM Kurier/`. The local `android/key.properties` points to that secure copy. The signed APK verifies with the v2 signature scheme; certificate SHA-256 is `57d583c2772566438446c423915132ed691644fa00ea50d182e33d7114fed98b`. Back up this key securely: future direct APK upgrades must use the same key. OTP codes, push tokens, order identifiers, and precise coordinates were removed from application diagnostics.
 - **Pending:** Access and refresh tokens remain in SharedPreferences. Move them to platform-protected storage with a tested migration before public release. Review Android background-location and Wi-Fi scan use against actual product need and Play declarations. Confirm Firebase, backend, and tile-server configuration with the service owner.
 - **N/A:** App Links / Universal Links. Neither is configured in this repository.
 
 ## 6. GitHub and CI gate
 
 - **Done:** The branch contains small Conventional Commits and a GitHub Actions workflow for locked dependencies, formatting, analysis, tests, and an unsigned Android release build.
-- **Pending:** Verify the remote PR checks and review comments, then merge only when green. GitHub About should contain the English description, verified project website, and relevant topics.
+- **Done:** GitHub About contains an English description, the verified project website, and relevant topics. The repository has been renamed to `Dadebay/a7-tagam-kurier`.
+- **Pending:** Verify the remote PR checks and review comments. The first two CI attempts passed format, analysis, and tests but could not download Gradle/Kotlin artifacts because GitHub returned HTTP 504; retry after the upstream download recovers.
 
 ## 7. Release and rollback
 
-- **Blocked:** No project-specific Android release keystore was found in secure local storage. The built APK is unsigned (`apksigner` reports `DOES NOT VERIFY`) and must not be published. No Google Play listing for `com.gurbanov.kurier` was verified. Therefore no release tag, signed APK, checksum attachment, GitHub Release, or direct-download link is published.
-- **Pending:** Obtain the signing identity, verify whether Play App Signing already exists for this package, increment the version code for a real release, install and smoke-test on a physical Android device, confirm backend compatibility and upgrade path, and prepare staged rollout and rollback notes. Keep signing credentials outside Git.
+- **Done:** No earlier tag or GitHub Release exists. A first signed `1.0.0+1` APK was built locally and verified for package `com.gurbanov.kurier`, version code 1, version name 1.0.0, and its signing certificate. No Google Play listing for this package was verified.
+- **Pending:** Build again from the exact merged/tagged commit, calculate SHA-256, attach the APK and checksum to a GitHub pre-release, and verify the public download. No Android device is currently connected, so physical-device installation, real OTP/backend flows, and upgrades from older installs remain untested. Confirm backend compatibility and prepare staged rollout and rollback notes before production use. Keep signing credentials outside Git.
 
 ## 8. Backend and operations handover
 
@@ -52,4 +53,4 @@ Checked on 8 November 2026 against the Flutter project cloned from `Dadebay/kuri
 
 ## 9. Final gate
 
-Merge the reviewed PR after CI passes. A production release is a separate step and remains blocked by signing, backend, privacy, and device verification. Update this document with the exact commit, device evidence, signed artifact fingerprint, release tag, and store link when those exist.
+Merge the reviewed PR after CI passes. A direct APK pre-release can then be published from the exact merged commit with its checksum and clear testing limitations. Production use remains blocked by backend, privacy, and physical-device verification. Update this document with the release commit, tag, asset link, and device evidence when those exist.
