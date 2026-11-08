@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart' as hive_ce;
 import 'package:hive_flutter/hive_flutter.dart' as hive;
 import 'package:a7_tagam_kurier/core/data/auth_repository.dart';
+import 'package:a7_tagam_kurier/core/models/order.dart';
 import 'package:a7_tagam_kurier/core/models/order_status.dart';
 import 'package:a7_tagam_kurier/core/models/pending_action.dart';
 import 'package:a7_tagam_kurier/core/network/api_client.dart';
@@ -133,5 +134,9 @@ void main() {
   test('unknown backend order status is never shown as assigned', () {
     expect(() => OrderStatus.fromWire('PAID'), throwsFormatException);
     expect(() => OrderStatus.fromWire(null), throwsFormatException);
+  });
+
+  test('an order without an id cannot be sent to a fabricated endpoint', () {
+    expect(() => DeliveryOrder.fromJson({'number': 1}), throwsFormatException);
   });
 }

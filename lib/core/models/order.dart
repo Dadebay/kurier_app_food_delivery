@@ -64,9 +64,13 @@ class DeliveryOrder {
       : (changeFrom! - total).clamp(0, double.infinity);
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    if (rawId == null || rawId.toString().trim().isEmpty) {
+      throw const FormatException('Order id is required');
+    }
     final customer = json['customer'] as Map<String, dynamic>? ?? const {};
     return DeliveryOrder(
-      id: json['id'].toString(),
+      id: rawId.toString(),
       number: json['number'] as int,
       status: OrderStatus.fromWire(json['status'] as String?),
       address: json['address'] is Map<String, dynamic>
