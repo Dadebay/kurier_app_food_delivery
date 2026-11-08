@@ -6,9 +6,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// Push for the courier app: asks for permission, keeps the registration
-/// token fresh, and surfaces the token in the console while running in debug
-/// so it can be pasted straight into Firebase's test sender.
+/// Push for the courier app: asks for permission and keeps the registration
+/// token fresh without writing it to application logs.
 ///
 /// The one message that matters here is an order being assigned: the courier
 /// is not watching the admin panel, so the push is how they find out.
@@ -44,15 +43,10 @@ class FirebaseMessagingService {
 
     await _initializeLocalNotifications();
 
-    final settings = await FirebaseMessaging.instance.requestPermission(
+    await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-    );
-    _banner(
-      'NOTIFICATION PERMISSION',
-      settings.authorizationStatus.name,
-      '36',
     );
 
     // iOS only — on Android this call does nothing at all, which is why a
@@ -65,27 +59,9 @@ class FirebaseMessagingService {
         );
 
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
-      _banner('FCM TOKEN REFRESHED', token, '32');
+    FirebaseMessaging.instance.onTokenRefresh.listen((_) {
       onTokenRefresh?.call();
     });
-
-    await _printToken();
-  }
-
-  Future<void> _printToken() async {
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      _banner('FCM TOKEN', token ?? 'not available yet', token == null ? '33' : '32');
-    } catch (error, stackTrace) {
-      developer.log(
-        'Unable to obtain FCM token',
-        name: 'Kurier FCM',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      _banner('FCM TOKEN', 'unavailable: $error', '31');
-    }
   }
 
   /// Registers the channel the notifications are posted on.
@@ -122,12 +98,10 @@ class FirebaseMessagingService {
         error: error,
         stackTrace: stackTrace,
       );
-      _banner('LOCAL NOTIFICATIONS', 'unavailable: $error', '31');
     }
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    _logForegroundMessage(message);
     await _showLocalNotification(message);
   }
 
@@ -177,31 +151,6 @@ class FirebaseMessagingService {
         stackTrace: stackTrace,
       );
     }
-  }
-
-  void _logForegroundMessage(RemoteMessage message) {
-    if (!kDebugMode) return;
-    final notification = message.notification;
-    const cyan = '\x1B[1;36m';
-    const yellow = '\x1B[1;33m';
-    const reset = '\x1B[0m';
-    debugPrint('$cyan╔════════ FCM FOREGROUND RECEIVED ════════╗$reset');
-    debugPrint('$cyan║$reset TITLE: $yellow${notification?.title}$reset');
-    debugPrint('$cyan║$reset BODY: ${notification?.body}');
-    debugPrint('$cyan║$reset DATA: ${message.data}');
-    debugPrint('$cyan╚═════════════════════════════════════════╝$reset');
-  }
-
-  void _banner(String label, String value, String ansiColor) {
-    if (!kDebugMode) return;
-    developer.log('$label: $value', name: 'Kurier FCM');
-    // ANSI escapes are rendered in colour by terminals used with `flutter run`.
-    // ignore: avoid_print
-    print('\x1B[1;${ansiColor}m╔══ KURIER $label ══╗\x1B[0m');
-    // ignore: avoid_print
-    print('\x1B[${ansiColor}m$value\x1B[0m');
-    // ignore: avoid_print
-    print('\x1B[1;${ansiColor}m╚════════════════════════════════╝\x1B[0m');
   }
 }
 
