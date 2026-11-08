@@ -21,11 +21,17 @@ class KurierApp extends StatelessWidget {
       theme: AppTheme.light,
       locale: locale.locale,
       supportedLocales: const [Locale('ru'), Locale('tk'), Locale('en')],
-      localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       // Turkmen has no Material translations upstream; fall back to Russian
       // for the framework's own strings rather than English.
-      localeResolutionCallback: (deviceLocale, supported) => locale.locale.languageCode == 'tk' ? const Locale('ru') : locale.locale,
-      builder: (context, child) => MediaQuery.withNoTextScaling(child: child!),
+      localeResolutionCallback: (deviceLocale, supported) =>
+          locale.locale.languageCode == 'tk'
+          ? const Locale('ru')
+          : locale.locale,
       home: const _Root(),
     );
   }
