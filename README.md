@@ -2,6 +2,8 @@
 
 Android courier app for the [A7-TAGAM delivery system](https://a7-tagam.com.tm/). Couriers can view assigned orders, follow a route, report their position, update delivery status, and review cash due. The app supports Turkmen and Russian.
 
+Older project drafts call this app **Naharym Courier**; the current product name is **A7-TAGAM Kurier**.
+
 **Status:** Android testing pre-release [v1.0.0](https://github.com/Dadebay/A7-TAGAM-kurier/releases/tag/v1.0.0). There is no verified Google Play listing. The repository contains an Android target; an iOS target has not been added. Physical-device installation and live backend flows have not yet been verified.
 
 ## Latest Android APK
