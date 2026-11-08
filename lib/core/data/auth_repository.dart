@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_config.dart';
@@ -55,36 +54,6 @@ class AuthRepository {
     if (response.statusCode != 200) {
       throw OtpRequestException(response.statusCode);
     }
-
-    // The local development API intentionally returns devCode. Never show it
-    // in the UI or emit it from release builds.
-    if (kDebugMode && response.data is Map<String, dynamic>) {
-      final devCode = (response.data as Map<String, dynamic>)['devCode'];
-      if (devCode is String && devCode.isNotEmpty) {
-        _printDevCode(phone: phone, code: devCode);
-      }
-    }
-  }
-
-  /// Debug-only terminal output, styled to stand out from normal Flutter logs.
-  /// This is never called in release mode and never renders inside the app.
-  void _printDevCode({required String phone, required String code}) {
-    const green = '\x1B[1;32m';
-    const yellow = '\x1B[1;33m';
-    const cyan = '\x1B[1;36m';
-    const reset = '\x1B[0m';
-    const width = 40;
-    final line = '═' * width;
-    final phoneText = ' PHONE: $phone';
-    final codeText = ' OTP CODE: $code';
-    debugPrint('$green╔$line╗$reset');
-    debugPrint(
-      '$green║$reset$cyan$phoneText$reset${' ' * (width - phoneText.length)}$green║$reset',
-    );
-    debugPrint(
-      '$green║$reset$yellow$codeText$reset${' ' * (width - codeText.length)}$green║$reset',
-    );
-    debugPrint('$green╚$line╝$reset');
   }
 
   /// Returns `true` when the code was accepted and the session is stored.
@@ -100,29 +69,14 @@ class AuthRepository {
       ApiPaths.verifyCode,
       data: {'phone': phone, 'code': code},
     );
-    if (response.statusCode != 200) {
-      if (kDebugMode) {
-        _printVerifyError(response.statusCode, response.data);
-      }
-      return false;
-    }
+    if (response.statusCode != 200) return false;
 
     final payload = response.data as Map<String, dynamic>;
     final user = payload['user'] as Map<String, dynamic>?;
-    if (user?['role'] != 'COURIER') {
-      if (kDebugMode) {
-        debugPrint('[OTP] Verify failed: account is not a courier.');
-      }
-      return false;
-    }
+    if (user?['role'] != 'COURIER') return false;
 
     final token = payload['accessToken'] as String?;
-    if (token == null) {
-      if (kDebugMode) {
-        debugPrint('[OTP] Verify failed: access token missing.');
-      }
-      return false;
-    }
+    if (token == null) return false;
 
     await _persist(
       token: token,
@@ -132,23 +86,15 @@ class AuthRepository {
     return true;
   }
 
-  void _printVerifyError(int? statusCode, dynamic body) {
-    final message = body is Map<String, dynamic> ? body['message'] : body;
-    const red = '\x1B[1;31m';
-    const yellow = '\x1B[1;33m';
-    const reset = '\x1B[0m';
-    debugPrint('$red╔════════ OTP VERIFY FAILED ════════╗$reset');
-    debugPrint('$red║$reset HTTP: $yellow$statusCode$reset');
-    debugPrint('$red║$reset ${message ?? 'Unknown error'}');
-    debugPrint('$red╚══════════════════════════════════╝$reset');
-  }
-
   Future<void> signOut() async {
     final refreshToken = _prefs.getString(_refreshTokenKey);
     try {
       if (!AppConfig.useMockData && refreshToken != null) {
         await _api.post(ApiPaths.logout, data: {'refreshToken': refreshToken});
       }
+    } catch (_) {
+      // A courier can sign out while offline. The server token will expire,
+      // but local access must end immediately.
     } finally {
       await _clearSession();
     }
@@ -175,7 +121,9 @@ class AuthRepository {
           ? data['accessToken'] as String?
           : null;
       if (response.statusCode != 200 || token == null) {
-        await _clearSession();
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          await _clearSession();
+        }
         return false;
       }
       await _persist(

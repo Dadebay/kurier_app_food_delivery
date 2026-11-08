@@ -19,9 +19,11 @@ import 'connectivity_service.dart';
 /// Positions captured with no signal are kept, not collapsed: the courier's
 /// whole offline stretch goes out oldest-first once the connection is back.
 class OfflineQueueService extends ChangeNotifier {
-  OfflineQueueService({required ApiClient api, required ConnectivityService connectivity})
-    : _api = api,
-      _connectivity = connectivity {
+  OfflineQueueService({
+    required ApiClient api,
+    required ConnectivityService connectivity,
+  }) : _api = api,
+       _connectivity = connectivity {
     _connectivity.addListener(_onConnectivityChanged);
   }
 
@@ -151,10 +153,22 @@ class OfflineQueueService extends ChangeNotifier {
             continue;
           }
 
-          // 4xx means the server rejected this action outright — replaying it
-          // forever would wedge the queue, so drop it and move on.
+          // Authentication, timeout, upgrade and rate-limit responses can be
+          // temporary. Keep the write in order so a delivery status is not
+          // lost while the courier reconnects or signs in again.
+          if (code == 401 || code == 408 || code == 426 || code == 429) {
+            action.attempts++;
+            await _box.put(key, action.encode());
+            break;
+          }
+
+          // Other 4xx responses reject this action outright. Drop it so a
+          // permanently invalid write does not wedge the queue.
           if (code >= 400 && code < 500) {
-            dev.log('dropping ${action.kind.name} ${action.id}: HTTP $code', name: 'OfflineQueue');
+            dev.log(
+              'dropping ${action.kind.name} ${action.id}: HTTP $code',
+              name: 'OfflineQueue',
+            );
             await _box.delete(key);
             // A status write specifically rejected as a conflict (stale
             // version) or forbidden (wrong courier / illegal transition)

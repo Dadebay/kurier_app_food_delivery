@@ -8,14 +8,17 @@ import 'package:flutter/foundation.dart';
 /// Everything that writes to the server watches this: the offline banner on the
 /// route screen, the queue flush loop and the tracking uploader.
 class ConnectivityService extends ChangeNotifier {
-  ConnectivityService() {
+  ConnectivityService() : _online = true {
     _init();
   }
+
+  /// Lets service tests control the connection without a platform channel.
+  ConnectivityService.test({bool online = true}) : _online = online;
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _sub;
 
-  bool _online = true;
+  bool _online;
   bool get online => _online;
   bool get offline => !_online;
 

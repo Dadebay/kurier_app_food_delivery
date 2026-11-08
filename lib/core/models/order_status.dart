@@ -40,7 +40,10 @@ enum OrderStatus {
     // business; to the courier it all reads as "cash already returned".
     'CASH_RETURNED' || 'COMPLETED' || 'RECONCILED' => OrderStatus.cashReturned,
     'CANCELLED' => OrderStatus.cancelled,
-    _ => OrderStatus.values.firstWhere((s) => s.wire == value, orElse: () => OrderStatus.assigned),
+    _ => OrderStatus.values.firstWhere(
+      (status) => status.wire == value,
+      orElse: () => throw FormatException('Unknown order status: $value'),
+    ),
   };
 
   /// The next status the big button should move the order to, or `null` when
