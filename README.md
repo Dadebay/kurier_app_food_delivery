@@ -45,7 +45,7 @@ The GitHub Actions workflow runs these checks on pull requests and pushes. A rel
 
 ## Signing and distribution
 
-The Android application ID is `com.gurbanov.kurier` and the current version is `1.0.0+1`. Keep both stable for any future Play listing. Release signing requires a project-specific keystore held outside Git and a local, ignored `android/key.properties` with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword`. `storeFile` may be an absolute path to secure storage. The Gradle configuration will not sign a release with the debug key.
+The Android application ID is `com.gurbanov.kurier` and the current version is `1.0.0+1`. Keep both stable for any future Play listing. Release signing requires a project-specific keystore held outside Git and a local, ignored `android/key.properties` based on [`android/key.properties.example`](android/key.properties.example). `storeFile` may be an absolute path to secure storage. The Gradle configuration will not sign a release with the debug key.
 
 Before distributing an APK, verify the package ID, version, signing certificate, checksum, installation, and upgrade path on a real device. A Play-signed installation can be upgraded only with the appropriate Play app signing certificate. No Play or direct-download link is included until a matching published artifact exists.
 
