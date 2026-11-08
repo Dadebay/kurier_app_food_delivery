@@ -38,13 +38,13 @@ Checked on 8 November 2026 against the Flutter project cloned from `Dadebay/kuri
 ## 6. GitHub and CI gate
 
 - **Done:** The branch contains small Conventional Commits and a GitHub Actions workflow for locked dependencies, formatting, analysis, tests, and an unsigned Android release build.
-- **Done:** GitHub About contains an English description, the verified project website, and relevant topics. The repository has been renamed to `Dadebay/a7-tagam-kurier`.
-- **Pending:** Verify the remote PR checks and review comments. The first two CI attempts passed format, analysis, and tests but could not download Gradle/Kotlin artifacts because GitHub returned HTTP 504; retry after the upstream download recovers.
+- **Done:** GitHub About contains an English description, the verified project website, and relevant topics. The repository is `Dadebay/A7-TAGAM-kurier`. PR #1 was merged into `main` at `ff9755cb16634461a9d379d6b10086e6551f5b06` after review of its diff and comments.
+- **Pending:** The remote CI checks passed locked dependencies, formatting, analysis, and all 15 tests, but the Android build step could not download Gradle/Kotlin artifacts because GitHub returned HTTP 504. Local signed builds pass; rerun CI when the upstream download recovers.
 
 ## 7. Release and rollback
 
-- **Done:** No earlier tag or GitHub Release exists. A first signed `1.0.0+1` APK was built locally and verified for package `com.gurbanov.kurier`, version code 1, version name 1.0.0, and its signing certificate. No Google Play listing for this package was verified.
-- **Pending:** Build again from the exact merged/tagged commit, calculate SHA-256, attach the APK and checksum to a GitHub pre-release, and verify the public download. No Android device is currently connected, so physical-device installation, real OTP/backend flows, and upgrades from older installs remain untested. Confirm backend compatibility and prepare staged rollout and rollback notes before production use. Keep signing credentials outside Git.
+- **Done:** No earlier tag or GitHub Release existed. Tag `v1.0.0` points to merge commit `ff9755cb16634461a9d379d6b10086e6551f5b06`. A clean signed `1.0.0+1` APK was built from that commit and verified for package `com.gurbanov.kurier`, version code 1, version name 1.0.0, and its signing certificate. SHA-256 is `c80477acc4e38549344563f561372e657e127934bc375783a60fcd3064296990`. The [GitHub testing pre-release](https://github.com/Dadebay/A7-TAGAM-kurier/releases/tag/v1.0.0) contains the APK and checksum. No Google Play listing for this package was verified.
+- **Pending:** Verify a full public download once GitHub's release asset CDN stops timing out; the public APK URL returned HTTP 200 to a HEAD request, and GitHub's asset digest matches the local SHA-256. No Android device is currently connected, so physical-device installation, real OTP/backend flows, and upgrades from older installs remain untested. Confirm backend compatibility and prepare staged rollout and rollback notes before production use. Keep signing credentials outside Git.
 
 ## 8. Backend and operations handover
 
@@ -53,4 +53,4 @@ Checked on 8 November 2026 against the Flutter project cloned from `Dadebay/kuri
 
 ## 9. Final gate
 
-Merge the reviewed PR after CI passes. A direct APK pre-release can then be published from the exact merged commit with its checksum and clear testing limitations. Production use remains blocked by backend, privacy, and physical-device verification. Update this document with the release commit, tag, asset link, and device evidence when those exist.
+PR #1 is merged and the direct APK testing pre-release is published from its merge commit with a checksum and clear testing limitations. Production use remains blocked by backend, privacy, and physical-device verification. Update this document with device evidence and any eventual store link when those exist.

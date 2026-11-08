@@ -2,7 +2,14 @@
 
 Android courier app for the [A7-TAGAM delivery system](https://a7-tagam.com.tm/). Couriers can view assigned orders, follow a route, report their position, update delivery status, and review cash due. The app supports Turkmen and Russian.
 
-**Status:** pre-release. There is no verified Google Play listing or published GitHub Release for this app. Do not present an unsigned or debug-signed APK as a download. The repository contains an Android target; an iOS target has not been added.
+**Status:** Android testing pre-release [v1.0.0](https://github.com/Dadebay/A7-TAGAM-kurier/releases/tag/v1.0.0). There is no verified Google Play listing. The repository contains an Android target; an iOS target has not been added. Physical-device installation and live backend flows have not yet been verified.
+
+## Latest Android APK
+
+- [Download the signed v1.0.0 APK](https://github.com/Dadebay/A7-TAGAM-kurier/releases/download/v1.0.0/A7-TAGAM-Kurier-v1.0.0.apk) for Android 7.0 or newer.
+- [Download its SHA-256 checksum](https://github.com/Dadebay/A7-TAGAM-kurier/releases/download/v1.0.0/A7-TAGAM-Kurier-v1.0.0.apk.sha256).
+
+The APK contains version `1.0.0+1` of `com.gurbanov.kurier` and was built from commit `ff9755cb16634461a9d379d6b10086e6551f5b06`. Its SHA-256 is `c80477acc4e38549344563f561372e657e127934bc375783a60fcd3064296990`. This direct-install APK uses a project-specific release certificate; it is not a Google Play package. Read the [release notes](https://github.com/Dadebay/A7-TAGAM-kurier/releases/tag/v1.0.0) before using it for live deliveries.
 
 ## What is implemented
 
@@ -47,7 +54,7 @@ The GitHub Actions workflow runs these checks on pull requests and pushes. A rel
 
 The Android application ID is `com.gurbanov.kurier` and the current version is `1.0.0+1`. Keep both stable for any future Play listing. Release signing requires a project-specific keystore held outside Git and a local, ignored `android/key.properties` based on [`android/key.properties.example`](android/key.properties.example). `storeFile` may be an absolute path to secure storage. The Gradle configuration will not sign a release with the debug key.
 
-Before distributing an APK, verify the package ID, version, signing certificate, checksum, installation, and upgrade path on a real device. A Play-signed installation can be upgraded only with the appropriate Play app signing certificate. No Play or direct-download link is included until a matching published artifact exists.
+The v1.0.0 APK's package ID, version, signing certificate, and checksum were verified. Installation and upgrade behavior still need testing on a real Android device. A Play-signed installation can be upgraded only with the appropriate Play app signing certificate.
 
 ## Known limits
 
