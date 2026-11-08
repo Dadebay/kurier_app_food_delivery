@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Gilroy throughout — the same family the other Naharym surfaces use.
+/// Gilroy typography for the A7-TAGAM courier app.
 class AppText {
   const AppText._();
 

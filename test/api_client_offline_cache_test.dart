@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kurier_app/core/network/api_client.dart';
+import 'package:a7_tagam_kurier/core/network/api_client.dart';
 
 /// Serves a canned body on its first call for a given path, then throws a
 /// connection-level [DioException] (no response at all) on every call after

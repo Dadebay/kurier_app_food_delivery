@@ -134,7 +134,6 @@ class ApiPaths {
   static const String verifyCode = 'auth/otp/verify';
   static const String refresh = 'auth/refresh';
   static const String logout = 'auth/logout';
-  static const String me = 'users/me';
   static const String orders = 'orders';
   static const String courierRoute = 'orders/courier/route';
   static const String branches = 'branches';

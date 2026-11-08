@@ -1,104 +1,66 @@
-# Naharym Kurýer
+# A7-TAGAM Kurier
 
-Courier application for the Naharym delivery system — Phase 1 / MVP, item 4 of
-the five workplaces described in `Naharym-predlozhenie-RU.pptx` (slide 8).
+Android courier app for the [A7-TAGAM delivery system](https://a7-tagam.com.tm/). Couriers can view assigned orders, follow a route, report their position, update delivery status, and review cash due. The app supports Turkmen and Russian.
 
-Screens follow the approved mock-ups in `../Naharym-mockups-RU/`
-(`courier_list.png`, `courier_route.png`).
+**Status:** pre-release. There is no verified Google Play listing or published GitHub Release for this app. Do not present an unsigned or debug-signed APK as a download. The repository contains an Android target; an iOS target has not been added.
 
-## What it does
+## What is implemented
 
-- **Assigned orders**, nearest first — address, amount, change, distance.
-- **Route inside the app**, drawn on our own tile server. No hand-off to an
-  external navigation app.
-- **Live position reporting every minute** — the courier appears as a car
-  marker on the operator's and the customer's map.
-- **One-touch statuses**: забрал → выехал → доставил.
-- **Cash confirmation** with the change due, feeding the end-of-shift
-  reconciliation.
-- **Day total** — deliveries done and cash on hand.
-- **Call the customer** straight from the order.
-- **Works without internet**: statuses queue on the phone and go out when the
-  signal returns. Map tiles are cached for 30 days.
-- **Data usage**: the profile reports the Android-measured traffic of this app
-  only (map, order sync, GPS and push), with mobile data and Wi-Fi shown
-  separately.
-- **Turkmen and Russian** from the first launch.
+- OTP sign-in against the configured backend, with an explicit mock mode for local demos.
+- Assigned orders, route display, customer calling, cash confirmation, and shift figures.
+- An offline outbox for status changes and location pings, plus cached GET responses and map tiles.
+- Firebase Cloud Messaging for order notifications and Android app data-usage figures.
 
-## Running it
+These are code capabilities, not evidence that the production backend, background tracking, or push delivery has passed a device test. See [release readiness](docs/release-readiness.md) for verified checks and remaining work.
 
-```bash
-flutter run
+## Requirements and setup
+
+- Flutter 3.47.8 with Dart 3.13.7 (the version used for the current checks)
+- Android SDK and JDK 17
+- Android device or emulator for running the app
+
+```sh
+flutter pub get --enforce-lockfile
+flutter run --dart-define=USE_MOCK_DATA=true
 ```
 
-For demo mode, pass `--dart-define=USE_MOCK_DATA=true`; it serves the shift
-from the mock-up (Мырат Аннаев, Parahat branch, orders 1042–1044). **Sign in
-with any phone number and the code `000000`.**
+Mock mode accepts any phone number with code `000000`. It contains demonstration orders and does not contact the courier API. For the real backend, omit `USE_MOCK_DATA` and provide the correct environment URL when needed:
 
-## Configuration
+```sh
+flutter run --dart-define=API_BASE_URL=https://a7-tagam.com.tm/api/v1/
+```
 
-Everything server-side lives in
-[`lib/core/constants/app_config.dart`](lib/core/constants/app_config.dart):
+`lib/core/constants/app_config.dart` contains the API base URL, tile URL, tracking interval, and cache settings. `lib/core/network/api_client.dart` lists backend paths. The real sign-in and delivery flows need a working courier account and a compatible backend; they have not been verified end to end in this repository.
 
-| Constant | Purpose |
-|---|---|
-| `apiBaseUrl` | Backend. Point at the customer's own server at install time. |
-| `useMockData` | `false` switches every repository call to the real backend. |
-| `mapTileUrl` | Our tile server — no usage fee, no foreign dependency. |
-| `osrmBaseUrl` | Routing endpoint. |
-| `trackingInterval` | Position upload period (proposal promises 3–5 min). |
-| `tileCacheMaxStale` | How long tiles stay usable offline. |
+## Checks
 
-Backend paths are listed in `ApiPaths`
-([`lib/core/network/api_client.dart`](lib/core/network/api_client.dart)).
+```sh
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze --no-pub
+flutter test --no-pub
+flutter build apk --release --no-pub
+```
+
+The GitHub Actions workflow runs these checks on pull requests and pushes. A release build without `android/key.properties` is **unsigned** and is only a build check.
+
+## Signing and distribution
+
+The Android application ID is `com.gurbanov.kurier` and the current version is `1.0.0+1`. Keep both stable for any future Play listing. Release signing requires a project-specific keystore held outside Git and a local, ignored `android/key.properties` with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword`. `storeFile` may be an absolute path to secure storage. The Gradle configuration will not sign a release with the debug key.
+
+Before distributing an APK, verify the package ID, version, signing certificate, checksum, installation, and upgrade path on a real device. A Play-signed installation can be upgraded only with the appropriate Play app signing certificate. No Play or direct-download link is included until a matching published artifact exists.
+
+## Known limits
+
+- The shift toggle changes local tracking state, but `CourierRepository.setShift` has no backend implementation. Its server contract must be confirmed before relying on the toggle for dispatch.
+- Auth tokens are currently stored in SharedPreferences. Move them to platform-protected storage before a public release.
+- Background location, Wi-Fi scanning, notification permissions, privacy declarations, and backend integration need device and store-policy verification.
+- There is no iOS project in this repository, so iOS build, TestFlight, and App Store checks are not applicable.
 
 ## Structure
 
-```
-lib/
-  core/
-    constants/     app_config.dart — every server address and tuning value
-    data/          repositories + the demo data set
-    localization/  AppStrings (ru / tk) and the language provider
-    models/        order, address, courier, order status, queued action
-    network/       Dio client and the endpoint list
-    services/      location, tracking, routing, offline queue, tile cache
-    theme/         colours, type, icons — taken from the mock-ups
-    widgets/       map, car marker, buttons, sync banner, loader
-  modules/
-    auth/          phone + SMS code sign-in
-    orders/        the order list (courier_list.png)
-    route/         the live map and status buttons (courier_route.png)
-    shift/         ShiftProvider — the working day
-    profile/       shift figures, language, map cache, sign-out
-```
+- `lib/core`: API, models, offline queue, tracking, localization, and theme
+- `lib/modules`: authentication, order list, route, history, shift, and profile screens
+- `assets`: fonts, loader animation, and map marker
+- `test`: cache, data usage, and release-safety regression tests
 
-### How writes work
-
-Nothing writes straight to the network. Every status tap, cash confirmation and
-position ping goes into a Hive-backed outbox
-(`core/services/offline_queue_service.dart`) and is sent from there, oldest
-first. One code path online and offline, so a tap made in a basement cannot be
-lost. Pings are the single exception: a queued ping replaces the previous one,
-because the operator wants the current position rather than a backlog.
-
-## Permissions
-
-Location (including background) and internet are declared for both platforms.
-Background location is what keeps the marker moving while the phone is in a
-pocket between deliveries.
-
-## Assets
-
-- `assets/fonts/` — Gilroy, matching the other Naharym surfaces.
-- `assets/animations/delivery_loader.mp4` — the loading animation.
-- `assets/icons/car_marker.svg` — the courier's map marker.
-
-## Tests
-
-```bash
-flutter test
-```
-
-Covers the status life-cycle, change-due arithmetic (including the case where
-the customer's note is smaller than the bill) and the money/distance formatting.
+The official project and app name is **A7-TAGAM Kurier**. The Android package ID remains `com.gurbanov.kurier` so existing installs and Firebase configuration keep their identity.

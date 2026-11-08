@@ -24,11 +24,7 @@ class AppConfig {
   static const String mapTileUrl =
       'https://a7-tagam.com.tm/tile/{z}/{x}/{y}.png';
 
-  /// Test tile server, kept for staging builds.
-  static const String mapTileUrlTest =
-      'https://a7-tagam.com.tm/tile/{z}/{x}/{y}.png';
-
-  static const String mapUserAgent = 'tm.com.naharym.kurier';
+  static const String mapUserAgent = 'com.gurbanov.kurier';
 
   /// Ashgabat — map opens here before the first GPS fix arrives.
   static const double defaultLat = 37.9601;
@@ -68,5 +64,4 @@ class AppConfig {
 
   // ─── Misc ────────────────────────────────────────────────────
   static const String currency = 'TMT';
-  static const String supportPhone = '+99312000000';
 }

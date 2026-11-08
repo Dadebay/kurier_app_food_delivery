@@ -6,8 +6,7 @@ import '../../models/delivery_address.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
 
-/// Demo data set — the exact shift shown in the approved mock-ups
-/// (`Naharym-mockups-RU/courier_list.png`).
+/// Demo data set for trying the courier flow without a backend account.
 ///
 /// It lets the whole courier flow be demonstrated and tested before the
 /// backend is installed. Flip [AppConfig.useMockData] to `false` to switch
@@ -163,8 +162,12 @@ class MockData {
         OrderItem(name: 'Компот', quantity: 3, price: 8),
       ],
       branchName: 'Parahat',
-      assignedAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 40)),
-      completedAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 10)),
+      assignedAt: DateTime.now().subtract(
+        const Duration(hours: 2, minutes: 40),
+      ),
+      completedAt: DateTime.now().subtract(
+        const Duration(hours: 2, minutes: 10),
+      ),
     ),
     DeliveryOrder(
       id: 'ord-1036',
@@ -186,8 +189,12 @@ class MockData {
         OrderItem(name: 'Салат «Мерджен»', quantity: 2, price: 24),
       ],
       branchName: 'Parahat',
-      assignedAt: DateTime.now().subtract(const Duration(hours: 5, minutes: 20)),
-      completedAt: DateTime.now().subtract(const Duration(hours: 4, minutes: 45)),
+      assignedAt: DateTime.now().subtract(
+        const Duration(hours: 5, minutes: 20),
+      ),
+      completedAt: DateTime.now().subtract(
+        const Duration(hours: 4, minutes: 45),
+      ),
     ),
 
     // 3–5 days old — shown under "Архив".

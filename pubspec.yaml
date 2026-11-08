@@ -1,4 +1,4 @@
-name: kurier_app
+name: a7_tagam_kurier
 description: >
   A7-TAGAM Kurier — courier tracking application.
   Assigned orders, in-app routing on our own map server, one-touch statuses,
@@ -49,7 +49,6 @@ dependencies:
   path: ^1.9.0
 
   # ─── Icons & UI ──────────────────────────────────────────────
-  cupertino_icons: ^1.0.8
   hugeicons: ^1.1.7
   flutter_svg: ^2.0.12
   # Plays the looping scooter clip used as the loading animation.
@@ -82,7 +81,6 @@ flutter:
   assets:
     - assets/animations/
     - assets/icons/
-    - assets/images/
 
   fonts:
     - family: Gilroy
