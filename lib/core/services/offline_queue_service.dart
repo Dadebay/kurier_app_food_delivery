@@ -166,7 +166,7 @@ class OfflineQueueService extends ChangeNotifier {
           // permanently invalid write does not wedge the queue.
           if (code >= 400 && code < 500) {
             dev.log(
-              'dropping ${action.kind.name} ${action.id}: HTTP $code',
+              'dropping ${action.kind.name} action: HTTP $code',
               name: 'OfflineQueue',
             );
             await _box.delete(key);
@@ -189,7 +189,7 @@ class OfflineQueueService extends ChangeNotifier {
           // Network died mid-flush. Stop here; ordering stays intact.
           action.attempts++;
           await _box.put(key, action.encode());
-          dev.log('flush stopped: $error', name: 'OfflineQueue');
+          dev.log('flush stopped: ${error.runtimeType}', name: 'OfflineQueue');
           break;
         }
       }

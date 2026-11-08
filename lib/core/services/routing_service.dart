@@ -132,7 +132,7 @@ class RoutingService {
       dev.log(
         courierPoint == null
             ? '\x1B[33m⚠️ route courier waypoint=null\x1B[0m'
-            : '\x1B[32m✅ route courier waypoint=$courierPoint\x1B[0m',
+            : '\x1B[32m✅ route courier waypoint present\x1B[0m',
         name: 'RoutingService',
       );
 
@@ -149,7 +149,10 @@ class RoutingService {
         courierPoint: courierPoint,
       );
     } catch (error) {
-      dev.log('route request failed: $error', name: 'RoutingService');
+      dev.log(
+        'route request failed: ${error.runtimeType}',
+        name: 'RoutingService',
+      );
       return RouteResult.empty;
     }
   }
