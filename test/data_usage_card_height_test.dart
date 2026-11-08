@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kurier_app/core/localization/app_strings.dart';
-import 'package:kurier_app/core/localization/locale_provider.dart';
-import 'package:kurier_app/core/services/data_usage_service.dart';
-import 'package:kurier_app/modules/profile/data_usage_screen.dart';
+import 'package:a7_tagam_kurier/core/localization/app_strings.dart';
+import 'package:a7_tagam_kurier/core/localization/locale_provider.dart';
+import 'package:a7_tagam_kurier/core/services/data_usage_service.dart';
+import 'package:a7_tagam_kurier/modules/profile/data_usage_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -50,7 +50,8 @@ void main() {
     expect(
       mobile.height,
       wifi.height,
-      reason: 'kartlar hizali olmali: mobil=${mobile.height} wifi=${wifi.height}',
+      reason:
+          'kartlar hizali olmali: mobil=${mobile.height} wifi=${wifi.height}',
     );
   });
 }

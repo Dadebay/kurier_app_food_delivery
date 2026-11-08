@@ -11,7 +11,12 @@ import '../../../core/widgets/status_chip.dart';
 /// status, address line, then the amount and distance. Change is shown on the
 /// route screen where the courier actually needs it, not repeated here.
 class OrderCard extends StatelessWidget {
-  const OrderCard({super.key, required this.order, required this.strings, required this.onTap});
+  const OrderCard({
+    super.key,
+    required this.order,
+    required this.strings,
+    required this.onTap,
+  });
 
   final DeliveryOrder order;
   final AppStrings strings;
@@ -53,7 +58,10 @@ class OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _Figure(label: strings.sum, value: Fmt.money(order.total)),
+                    child: _Figure(
+                      label: strings.sum,
+                      value: Fmt.money(order.total),
+                    ),
                   ),
                   Expanded(
                     child: _Figure(
@@ -73,7 +81,11 @@ class OrderCard extends StatelessWidget {
 }
 
 class _Figure extends StatelessWidget {
-  const _Figure({required this.label, required this.value, this.alignEnd = false});
+  const _Figure({
+    required this.label,
+    required this.value,
+    this.alignEnd = false,
+  });
 
   final String label;
   final String value;
@@ -82,11 +94,18 @@ class _Figure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(label, style: AppText.label),
         const SizedBox(height: 6),
-        Text(value, style: AppText.figure, maxLines: 1, overflow: TextOverflow.ellipsis),
+        Text(
+          value,
+          style: AppText.figure,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

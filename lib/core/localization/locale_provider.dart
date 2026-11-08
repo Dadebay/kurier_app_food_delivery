@@ -7,7 +7,9 @@ import 'app_strings.dart';
 /// Holds the selected language and hands out the matching [AppStrings].
 class LocaleProvider extends ChangeNotifier {
   LocaleProvider(this._prefs)
-    : _strings = _prefs.getString(_key) == 'tk' ? const StringsTm() : const StringsRu();
+    : _strings = _prefs.getString(_key) == 'tk'
+          ? const StringsTm()
+          : const StringsRu();
 
   static const String _key = 'app_language';
 

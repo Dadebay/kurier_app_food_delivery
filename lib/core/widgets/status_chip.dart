@@ -15,8 +15,14 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(color: status.softColor, borderRadius: BorderRadius.circular(20)),
-      child: Text(label(status, strings), style: AppText.chip.copyWith(color: status.color)),
+      decoration: BoxDecoration(
+        color: status.softColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label(status, strings),
+        style: AppText.chip.copyWith(color: status.color),
+      ),
     );
   }
 

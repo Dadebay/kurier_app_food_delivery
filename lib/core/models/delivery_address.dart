@@ -26,15 +26,19 @@ class DeliveryAddress {
 
   final LatLng point;
 
-  factory DeliveryAddress.fromJson(Map<String, dynamic> json) => DeliveryAddress(
-    district: json['district'] as String? ?? '',
-    house: json['house']?.toString() ?? '',
-    entrance: json['entrance']?.toString(),
-    floor: json['floor']?.toString(),
-    apartment: json['apartment']?.toString(),
-    note: json['note'] as String?,
-    point: LatLng((json['lat'] as num).toDouble(), (json['lng'] as num).toDouble()),
-  );
+  factory DeliveryAddress.fromJson(Map<String, dynamic> json) =>
+      DeliveryAddress(
+        district: json['district'] as String? ?? '',
+        house: json['house']?.toString() ?? '',
+        entrance: json['entrance']?.toString(),
+        floor: json['floor']?.toString(),
+        apartment: json['apartment']?.toString(),
+        note: json['note'] as String?,
+        point: LatLng(
+          (json['lat'] as num).toDouble(),
+          (json['lng'] as num).toDouble(),
+        ),
+      );
 
   Map<String, dynamic> toJson() => {
     'district': district,

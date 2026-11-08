@@ -54,7 +54,8 @@ class ShiftProvider extends ChangeNotifier {
 
   /// Everything still to deliver, nearest stop first — this is the order the
   /// route screen numbers the pins in.
-  List<DeliveryOrder> get openOrders => _orders.where((o) => o.status.isOpen).toList();
+  List<DeliveryOrder> get openOrders =>
+      _orders.where((o) => o.status.isOpen).toList();
 
   List<DeliveryOrder> get allOrders => _orders;
 
@@ -76,7 +77,8 @@ class ShiftProvider extends ChangeNotifier {
     final open = openOrders;
     if (open.isEmpty) return null;
     return open.firstWhere(
-      (o) => o.status == OrderStatus.onTheWay || o.status == OrderStatus.pickedUp,
+      (o) =>
+          o.status == OrderStatus.onTheWay || o.status == OrderStatus.pickedUp,
       orElse: () => open.first,
     );
   }
@@ -118,7 +120,10 @@ class ShiftProvider extends ChangeNotifier {
 
   Future<void> refresh() async {
     try {
-      final results = await Future.wait([_repository.orders(), _repository.summary()]);
+      final results = await Future.wait([
+        _repository.orders(),
+        _repository.summary(),
+      ]);
       _orders = results[0] as List<DeliveryOrder>;
       _summary = results[1] as ShiftSummary;
       _sortByDistance();
@@ -164,7 +169,11 @@ class ShiftProvider extends ChangeNotifier {
     );
     notifyListeners();
 
-    await _repository.confirmCash(order: order, received: received, changeGiven: changeGiven);
+    await _repository.confirmCash(
+      order: order,
+      received: received,
+      changeGiven: changeGiven,
+    );
   }
 
   Future<void> toggleShift() async {
@@ -204,8 +213,10 @@ class ShiftProvider extends ChangeNotifier {
       // Finished orders drop to the bottom.
       if (a.status.isOpen != b.status.isOpen) return a.status.isOpen ? -1 : 1;
       // The one in hand stays on top regardless of distance.
-      final aActive = a.status == OrderStatus.onTheWay || a.status == OrderStatus.pickedUp;
-      final bActive = b.status == OrderStatus.onTheWay || b.status == OrderStatus.pickedUp;
+      final aActive =
+          a.status == OrderStatus.onTheWay || a.status == OrderStatus.pickedUp;
+      final bActive =
+          b.status == OrderStatus.onTheWay || b.status == OrderStatus.pickedUp;
       if (aActive != bActive) return aActive ? -1 : 1;
 
       final aKm = a.distanceKm ?? double.maxFinite;

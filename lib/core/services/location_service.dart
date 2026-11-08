@@ -417,7 +417,8 @@ class LocationService extends ChangeNotifier {
     if (resolve == null) return;
     try {
       final point = await resolve();
-      if (point == null || !_isValidCoordinate(point.latitude, point.longitude)) {
+      if (point == null ||
+          !_isValidCoordinate(point.latitude, point.longitude)) {
         _warning('network positioning returned nothing');
         return;
       }

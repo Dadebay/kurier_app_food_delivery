@@ -90,7 +90,8 @@ class TrackingService extends ChangeNotifier {
     // screen would change, and it saves the data plan.
     final previous = _lastSent;
     if (previous != null &&
-        LocationService.metersBetween(previous, point) < AppConfig.minTrackingDistanceMeters) {
+        LocationService.metersBetween(previous, point) <
+            AppConfig.minTrackingDistanceMeters) {
       return;
     }
 

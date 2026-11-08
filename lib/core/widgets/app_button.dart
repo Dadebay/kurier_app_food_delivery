@@ -55,7 +55,9 @@ class AppButton extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: outlined ? Border.all(color: AppColors.divider, width: 1.5) : null,
+              border: outlined
+                  ? Border.all(color: AppColors.divider, width: 1.5)
+                  : null,
               color: enabled
                   ? null
                   // Dim rather than grey out — the label must stay readable
@@ -79,7 +81,10 @@ class AppButton extends StatelessWidget {
                           HugeIcon(icon: icon!, size: 20, color: textColor),
                           const SizedBox(width: 10),
                         ],
-                        Text(label, style: AppText.button.copyWith(color: textColor)),
+                        Text(
+                          label,
+                          style: AppText.button.copyWith(color: textColor),
+                        ),
                       ],
                     ),
             ),

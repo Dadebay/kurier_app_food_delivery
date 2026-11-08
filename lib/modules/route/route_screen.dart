@@ -430,9 +430,9 @@ class _RouteScreenState extends State<RouteScreen> {
                       // No position yet: ask for one instead of doing nothing,
                       // and say so — a dead button reads as a broken app.
                       unawaited(location.currentOrFix());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(s.waitingForGps)),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(s.waitingForGps)));
                     },
                   ),
                 ],

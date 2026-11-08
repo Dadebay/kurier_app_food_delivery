@@ -80,13 +80,20 @@ class _DeliveryLoaderState extends State<DeliveryLoader> {
                   child: SizedBox(
                     width: 26,
                     height: 26,
-                    child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.orange),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: AppColors.orange,
+                    ),
                   ),
                 ),
         ),
         if (widget.message != null) ...[
           const SizedBox(height: 12),
-          Text(widget.message!, textAlign: TextAlign.center, style: AppText.bodyMuted),
+          Text(
+            widget.message!,
+            textAlign: TextAlign.center,
+            style: AppText.bodyMuted,
+          ),
         ],
       ],
     );

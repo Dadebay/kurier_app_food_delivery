@@ -44,7 +44,10 @@ class HistoryOrderCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text('№${order.number}', style: AppText.h2.copyWith(fontSize: 17)),
+                        Text(
+                          '№${order.number}',
+                          style: AppText.h2.copyWith(fontSize: 17),
+                        ),
                         if (completedAt != null) ...[
                           const SizedBox(width: 8),
                           Text(Fmt.time(completedAt), style: AppText.bodyMuted),
@@ -70,4 +73,3 @@ class HistoryOrderCard extends StatelessWidget {
     );
   }
 }
-
